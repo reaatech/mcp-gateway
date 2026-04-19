@@ -1,0 +1,105 @@
+{
+  "name": "mcp-gateway",
+  "version": "1.0.0",
+  "description": "Production MCP gateway with authentication, rate limiting, schema enforcement, tool allowlists, audit trail, fan-out routing, and response caching",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/src/index.js",
+  "types": "dist/src/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/src/index.d.ts",
+      "import": "./dist/src/index.js"
+    },
+    "./cli": {
+      "types": "./dist/src/cli.d.ts",
+      "import": "./dist/src/cli.js"
+    }
+  },
+  "bin": {
+    "mcp-gateway": "./dist/src/cli.js"
+  },
+  "files": [
+    "dist/src",
+    "README.md",
+    "LICENSE"
+  ],
+  "keywords": [
+    "mcp",
+    "gateway",
+    "api-gateway",
+    "auth",
+    "rate-limiting",
+    "caching",
+    "model-context-protocol",
+    "oauth",
+    "oidc",
+    "redis",
+    "observability"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "clean": "rm -rf dist coverage",
+    "dev": "npm run build && node --enable-source-maps dist/src/index.js",
+    "lint": "eslint src tests",
+    "format": "prettier --write src tests",
+    "format:check": "prettier --check src tests",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "test:contract": "vitest run tests/contract",
+    "test:integration": "vitest run tests/integration",
+    "prepare": "test -d .git && husky || true",
+    "precommit": "lint-staged"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "@opentelemetry/api": "^1.9.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.52.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.52.0",
+    "@opentelemetry/instrumentation-express": "^0.47.0",
+    "@opentelemetry/instrumentation-http": "^0.52.0",
+    "@opentelemetry/sdk-metrics": "^1.25.0",
+    "@opentelemetry/sdk-node": "^0.52.0",
+    "ajv": "^8.18.0",
+    "express": "^5.0.0",
+    "jose": "^5.2.0",
+    "js-yaml": "^4.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "pino": "^8.18.0",
+    "redis": "^4.6.12",
+    "yaml": "^2.4.0",
+    "zod": "^3.23.0"
+  },
+  "devDependencies": {
+    "@types/express": "^5.0.0",
+    "@types/express-serve-static-core": "^5.0.0",
+    "@types/js-yaml": "^4.0.9",
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^22.0.0",
+    "@types/supertest": "^7.2.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^17.5.0",
+    "husky": "^9.0.0",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.2.0",
+    "supertest": "^7.2.2",
+    "typescript": "^5.5.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  },
+  "engines": {
+    "node": ">=22.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/mcp-gateway.git"
+  },
+  "homepage": "https://github.com/reaatech/mcp-gateway#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/mcp-gateway/issues"
+  }
+}

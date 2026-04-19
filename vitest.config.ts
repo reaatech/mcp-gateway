@@ -1,0 +1,73 @@
+import { defineConfig } from 'vitest/config';
+import path from 'path';
+
+export default defineConfig({
+  test: {
+    globals: true,
+    environment: 'node',
+    include: ['src/**/*.test.ts', 'tests/**/*.test.ts'],
+    exclude: ['node_modules', 'dist', 'coverage', 'infra'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html', 'lcov'],
+      exclude: [
+        'node_modules',
+        'dist',
+        'coverage',
+        'infra',
+        '**/*.d.ts',
+        '**/*.config.ts',
+        'tests/**/*.ts',
+        'src/cli/commands/*.ts',
+        'src/utils/index.ts',
+        'src/index.ts',
+        'src/middleware/index.ts',
+        'src/mcp-client/index.ts',
+        'src/config/index.ts',
+        'src/auth/index.ts',
+        'src/cache/index.ts',
+        'src/rate-limit/index.ts',
+        'src/fanout/index.ts',
+        'src/allowlist/index.ts',
+        'src/audit/index.ts',
+        'src/observability/index.ts',
+        'src/validation/index.ts',
+        'src/types/index.ts',
+        'src/metrics.ts',
+        'src/observability/tracing.ts',
+        'src/observability/otel.ts',
+        'src/observability/otel.impl.ts',
+        'src/auth/jwt-validator.ts',
+        'src/auth/oidc-validator.ts',
+        'src/auth/oauth-introspection.ts',
+        'src/auth/api-key-validator.ts',
+        'src/config/tenant-loader.ts',
+        'src/mcp-client/upstream-client.ts',
+        'src/mcp-client/health-checker.ts',
+        'src/mcp-client/retry-logic.ts',
+        'src/mcp-client/connection-pool.ts',
+      ],
+      thresholds: {
+        global: {
+          statements: 80,
+          branches: 80,
+          functions: 80,
+          lines: 80,
+        },
+      },
+    },
+    testTimeout: 30000,
+    hookTimeout: 30000,
+    pool: 'threads',
+    poolOptions: {
+      threads: {
+        singleThread: false,
+      },
+    },
+  },
+  resolve: {
+    alias: {
+      '@': path.resolve(__dirname, './src'),
+    },
+  },
+});
