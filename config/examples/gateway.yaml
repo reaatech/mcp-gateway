@@ -1,0 +1,34 @@
+server:
+  host: "0.0.0.0"
+  port: 8080
+  tls:
+    enabled: false
+    cert_path: "/etc/ssl/certs/gateway.crt"
+    key_path: "/etc/ssl/private/gateway.key"
+
+redis:
+  host: "localhost"
+  port: 6379
+  password_env: "REDIS_PASSWORD"
+  db: 0
+
+rate_limits:
+  default_requests_per_minute: 100
+  default_requests_per_day: 10000
+  store: "memory"
+
+cache:
+  enabled: true
+  store: "memory"
+  default_ttl_seconds: 300
+
+audit:
+  enabled: true
+  storage: "file"
+  file_path: "/var/log/gateway/audit.json"
+  retention_days: 90
+
+observability:
+  otel_endpoint: ""
+  log_level: "info"
+  service_name: "mcp-gateway"

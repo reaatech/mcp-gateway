@@ -1,0 +1,39 @@
+tenant_id: "example-tenant"
+display_name: "Example Tenant"
+
+auth:
+  api_keys:
+    - key_hash: "sha256:2c26b46b68ffc68ff99b453c1d30413413422d706483bfa0f98a5e886266e7ae"
+      name: "dev-api-key"
+      scopes: ["tools:*"]
+  jwt:
+    issuer: "https://auth.example.com"
+    audience: "mcp-gateway"
+    jwks_uri: "https://auth.example.com/.well-known/jwks.json"
+
+rate_limits:
+  requests_per_minute: 1000
+  requests_per_day: 100000
+  burst_size: 50
+
+allowlist:
+  mode: "allow"
+  tools:
+    - "glean_*"
+    - "serval_*"
+    - "internal_*"
+
+cache:
+  enabled: true
+  ttl_seconds: 300
+  max_size_mb: 100
+
+upstreams:
+  - name: "primary"
+    url: "https://mcp-server-1.example.com"
+    weight: 0.7
+    timeout_ms: 30000
+  - name: "secondary"
+    url: "https://mcp-server-2.example.com"
+    weight: 0.3
+    timeout_ms: 30000
