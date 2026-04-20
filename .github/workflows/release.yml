@@ -1,9 +1,12 @@
 name: Release
 
 on:
-  push:
-    tags:
-      - 'v*.*.*'
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release (e.g., v1.0.0)'
+        required: true
+        type: string
 
 jobs:
   release:
@@ -18,35 +21,35 @@ jobs:
           node-version: '22'
           registry-url: 'https://registry.npmjs.org'
           cache: 'npm'
-          cache-dependency-path: 'mcp-gateway/package-lock.json'
       - name: Install dependencies
-        working-directory: mcp-gateway
         run: npm ci
       - name: Run tests
-        working-directory: mcp-gateway
         run: npm test
       - name: Build
-        working-directory: mcp-gateway
         run: npm run build
       - name: Publish to npm
-        working-directory: mcp-gateway
         run: npm publish --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-      - name: Build and push Docker image
-        working-directory: mcp-gateway
+      - name: Build Docker image
         run: |
-          docker build -t mcp-gateway:${{ github.ref_name }} .
-          docker tag mcp-gateway:${{ github.ref_name }} mcp-gateway:latest
+          docker build -t mcp-gateway:${{ inputs.version }} .
+          docker tag mcp-gateway:${{ inputs.version }} mcp-gateway:latest
       - name: Generate changelog
         id: changelog
         run: |
           echo "## What's Changed" > release-notes.md
-          git log $(git describe --tags --abbrev=0 HEAD^)..HEAD --pretty=format:"* %s" >> release-notes.md
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
+          if [ -n "$PREV_TAG" ]; then
+            git log "$PREV_TAG"..HEAD --pretty=format:"* %s" >> release-notes.md
+          else
+            git log --pretty=format:"* %s" >> release-notes.md
+          fi
           cat release-notes.md
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v1
         with:
+          tag_name: ${{ inputs.version }}
           body_path: release-notes.md
           files: |
-            mcp-gateway/package.json
+            package.json
