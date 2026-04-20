@@ -20,7 +20,7 @@ const envSchema = z.object({
   REDIS_DB: z.coerce.number().min(0).max(15).default(0),
 
   // TLS
-  TLS_ENABLED: z.coerce.boolean().default(false),
+  TLS_ENABLED: z.union([z.boolean(), z.string().transform((v) => v.toLowerCase() === 'true' || v === '1')]).default(false),
   TLS_CERT_PATH: z.string().optional(),
   TLS_KEY_PATH: z.string().optional(),
 
@@ -35,12 +35,12 @@ const envSchema = z.object({
   RATE_LIMIT_DEFAULT_RPD: z.coerce.number().positive().default(10000),
 
   // Cache
-  CACHE_ENABLED: z.coerce.boolean().default(true),
+  CACHE_ENABLED: z.union([z.boolean(), z.string().transform((v) => v.toLowerCase() === 'true' || v === '1')]).default(true),
   CACHE_STORE: z.enum(['redis', 'memory']).default('redis'),
   CACHE_DEFAULT_TTL: z.coerce.number().positive().default(300),
 
   // Audit
-  AUDIT_ENABLED: z.coerce.boolean().default(true),
+  AUDIT_ENABLED: z.union([z.boolean(), z.string().transform((v) => v.toLowerCase() === 'true' || v === '1')]).default(true),
   AUDIT_STORAGE: z.enum(['file', 'database', 'siem']).default('file'),
   AUDIT_FILE_PATH: z.string().default('./logs/audit.json'),
   AUDIT_RETENTION_DAYS: z.coerce.number().positive().default(90),
