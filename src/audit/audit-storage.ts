@@ -90,7 +90,6 @@ export class FileAuditStorage {
     this.filePath = filePath;
     this.maxFileSizeBytes = options?.maxFileSizeBytes ?? 50 * 1024 * 1024;
     this.retentionDays = options?.retentionDays ?? 90;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     this.fs = require('fs');
 
     if (!this.fs.existsSync(filePath)) {

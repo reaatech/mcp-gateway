@@ -39,7 +39,7 @@ export const MCPToolSchema = z.object({
   description: z.string().optional(),
   inputSchema: z.object({
     type: z.literal('object'),
-    properties: z.record(z.unknown()).optional(),
+    properties: z.record(z.string(), z.unknown()).optional(),
     required: z.string().array().optional(),
   }),
 });
@@ -56,7 +56,7 @@ export const MCPToolsListSchema = z.object({
  */
 export const MCPToolsCallParamsSchema = z.object({
   name: z.string(),
-  arguments: z.record(z.unknown()).optional(),
+  arguments: z.record(z.string(), z.unknown()).optional(),
 });
 
 /**

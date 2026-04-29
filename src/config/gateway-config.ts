@@ -45,7 +45,6 @@ function getYaml(deps: ConfigDependencies): YamlLoader | undefined {
     return deps.yaml;
   }
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('js-yaml');
   } catch {
     return undefined;

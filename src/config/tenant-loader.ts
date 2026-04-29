@@ -29,7 +29,6 @@ let watcher: FSWatcher | undefined;
  */
 function getYaml(): { load: (content: string) => unknown } | undefined {
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     return require('js-yaml');
   } catch {
     return undefined;

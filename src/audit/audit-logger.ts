@@ -132,7 +132,6 @@ export class FileAuditLogger implements AuditLogger {
 
   constructor(filePath: string) {
     this.filePath = filePath;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     this.fs = require('fs');
   }
 

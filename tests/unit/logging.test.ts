@@ -8,7 +8,7 @@ import type { Request, Response, NextFunction } from 'express';
 import type { PipelineContext } from '../../src/middleware/types.js';
 
 describe('loggingMiddleware', () => {
-  let mockLogger: ReturnType<typeof vi.fn>;
+  let mockLogger: ReturnType<typeof vi.fn<(data: unknown) => void>>;
   let mockReq: Partial<Request>;
   let mockRes: Partial<Response>;
   let mockNext: NextFunction;
