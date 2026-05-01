@@ -1,0 +1,47 @@
+{
+  "name": "@reaatech/mcp-gateway-rate-limit",
+  "version": "1.0.0",
+  "description": "Per-tenant rate limiting with token bucket algorithm",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/mcp-gateway.git",
+    "directory": "packages/rate-limit"
+  },
+  "homepage": "https://github.com/reaatech/mcp-gateway/tree/main/packages/rate-limit#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/mcp-gateway/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@reaatech/mcp-gateway-core": "workspace:*",
+    "redis": "^5.12.1"
+  },
+  "devDependencies": {
+    "@types/node": "^25.6.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1"
+  }
+}

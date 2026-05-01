@@ -3,6 +3,10 @@ node_modules/
 
 # Build output
 dist/
+.turbo/
+
+# Package manager
+pnpm-lock.yaml
 
 # Environment files
 .env
@@ -46,3 +50,9 @@ Desktop.ini
 
 # Project files
 DEV_PLAN.md
+
+# Prevent stale tsup output in source directories
+packages/*/src/**/*.js
+packages/*/src/**/*.js.map
+packages/*/src/**/*.d.ts
+packages/*/src/**/*.d.ts.map

@@ -1,0 +1,50 @@
+{
+  "name": "@reaatech/mcp-gateway-auth",
+  "version": "1.0.0",
+  "description": "Pluggable authentication for mcp-gateway (API key, JWT, OAuth, OIDC)",
+  "license": "MIT",
+  "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/reaatech/mcp-gateway.git",
+    "directory": "packages/auth"
+  },
+  "homepage": "https://github.com/reaatech/mcp-gateway/tree/main/packages/auth#readme",
+  "bugs": {
+    "url": "https://github.com/reaatech/mcp-gateway/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "clean": "rm -rf dist"
+  },
+  "dependencies": {
+    "@reaatech/mcp-gateway-core": "workspace:*",
+    "jose": "^5.2.0",
+    "jsonwebtoken": "^9.0.2"
+  },
+  "devDependencies": {
+    "@types/jsonwebtoken": "^9.0.5",
+    "@types/node": "^25.6.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vitest": "^3.1.1",
+    "@reaatech/mcp-gateway-allowlist": "workspace:*"
+  }
+}
