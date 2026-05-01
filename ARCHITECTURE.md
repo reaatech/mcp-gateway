@@ -67,6 +67,32 @@
 
 ---
 
+## Package Architecture
+
+mcp-gateway is a **pnpm monorepo** with 10 independently versioned packages:
+
+```
+core  (@reaatech/mcp-gateway-core)
+  ├── auth           (@reaatech/mcp-gateway-auth)
+  ├── rate-limit     (@reaatech/mcp-gateway-rate-limit)
+  ├── cache          (@reaatech/mcp-gateway-cache)
+  ├── allowlist      (@reaatech/mcp-gateway-allowlist)
+  ├── validation     (@reaatech/mcp-gateway-validation)
+  ├── fanout         (@reaatech/mcp-gateway-fanout)
+  ├── audit          (@reaatech/mcp-gateway-audit)
+  ├── observability  (@reaatech/mcp-gateway-observability)
+  └── gateway        (@reaatech/mcp-gateway-gateway)
+```
+
+- `core` is the foundation — types, schemas, config loading, logging, and utilities. Every other package depends on it.
+- `gateway` is the compositor — it imports all 9 sibling packages and wires them into an Express 5 server.
+- All other packages are leaf modules that encapsulate a single domain concern.
+- Each package builds independently via **tsup** (dual CJS/ESM output).
+- Cross-package typechecking uses `tsconfig.typecheck.json` with path aliases.
+- Package interdependencies are declared as `workspace:*` in `package.json`.
+
+---
+
 ## Design Principles
 
 ### 1. Zero-Trust Security
@@ -101,333 +127,136 @@
 
 ---
 
-## Component Deep Dive
+## Middleware Pipeline
 
-### Gateway Layer
+Requests to `POST /mcp` flow through this pipeline (implemented in `packages/gateway/src/index.ts`):
 
-The gateway processes all inbound HTTP traffic through a middleware pipeline:
+| Order | Middleware | Package |
+|-------|-----------|---------|
+| 1 | TLS Termination | gateway (Express) |
+| 2 | Request ID | gateway |
+| 3 | Auth | `@reaatech/mcp-gateway-auth` |
+| 4 | Rate Limit | `@reaatech/mcp-gateway-rate-limit` |
+| 5 | Schema Validation | `@reaatech/mcp-gateway-validation` |
+| 6 | Tool Allowlist | `@reaatech/mcp-gateway-allowlist` |
+| 7 | Cache Lookup | `@reaatech/mcp-gateway-cache` |
+| 8 | Fan-out Router | `@reaatech/mcp-gateway-fanout` |
+| 9 | Cache Store | `@reaatech/mcp-gateway-cache` |
+| 10 | Error Handler | gateway |
 
-| Middleware | Order | Purpose |
-|------------|-------|---------|
-| **TLS Termination** | 1 | HTTPS enforcement, security headers |
-| **Request ID** | 2 | Generate/propagate request ID |
-| **Auth** | 3 | Validate credentials, extract tenant |
-| **Rate Limit** | 4 | Check rate limits, reject if exceeded |
-| **Cache Lookup** | 5 | Check cache for response |
-| **Schema Validation** | 6 | Validate MCP JSON-RPC format |
-| **Tool Allowlist** | 7 | Check tool access permissions |
-| **Fan-out Router** | 8 | Route to upstream(s) |
-| **Cache Store** | 9 | Cache successful responses |
-| **Audit Log** | 10 | Log security events |
+**Design Decision:** Middleware order is critical — auth before rate limiting (prevents rate limit bypass), allowlist before cache (prevents unauthorized cache hits).
 
-**Design Decision:** Middleware order is critical — auth before rate limiting
-(prevents rate limit bypass via unauthenticated requests), cache before
-validation (avoid caching invalid requests).
+---
 
-### Authentication System
+## Authentication System
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Authentication Pipeline                          │
-│                                                                      │
-│  Request with credentials                                           │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
-│  │  Extract Auth   │───▶│  Determine Auth │───▶│  Validate with  │  │
-│  │  Credentials    │    │  Method         │    │  Appropriate    │  │
-│  │                 │    │                 │    │  Validator      │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘  │
-│                                                        │             │
-│                                                        ▼             │
-│                                               ┌─────────────────┐    │
-│                                               │  Extract Tenant │    │
-│                                               │  & Permissions  │    │
-│                                               └─────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+### Auth Methods
 
-**Auth Methods:**
+| Method | Implementation | Use Case |
+|--------|---------------|----------|
+| **API Key** | `api-key-validator.ts` — SHA-256 hash comparison | Service-to-service |
+| **JWT** | `jwt-validator.ts` — RS256/ES256 via `jose` | User authentication |
+| **OAuth2** | `oauth-introspection.ts` — RFC 7662 | Third-party apps |
+| **OIDC** | `oidc-validator.ts` — ID token validation | SSO integration |
 
-| Method | Validation | Use Case |
-|--------|------------|----------|
-| **API Key** | Hash comparison (SHA-256) | Service-to-service |
-| **JWT** | Signature verification (RS256/ES256) | User authentication |
-| **OAuth2** | Token introspection (RFC 7662) | Third-party apps |
-| **OIDC** | ID token validation | SSO integration |
+**Package:** `packages/auth/src/`
 
-**Design Decision:** API keys are stored as hashes, never plaintext. The gateway
-only stores `SHA-256(key)`, so even a database breach doesn't expose valid keys.
-
-### Rate Limiting System
+### Auth Flow
 
 ```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Rate Limiting Flow                              │
-│                                                                      │
-│  Request → Extract Tenant → Check Rate Limit → Allow or Reject      │
-│                                   │                                  │
-│                                   ▼                                  │
-│                          ┌─────────────────┐                        │
-│                          │  Token Bucket   │                        │
-│                          │  Algorithm      │                        │
-│                          │                 │                        │
-│                          │ - Capacity:     │                        │
-│                          │   requests/min  │                        │
-│                          │ - Refill rate:  │                        │
-│                          │   per config    │                        │
-│                          │ - Burst:        │                        │                        │
-│                          │   configured    │                        │
-│                          └─────────────────┘                        │
-│                                   │                                  │
-│                                   ▼                                  │
-│                          ┌─────────────────┐                        │
-│                          │    Redis Lua    │                        │
-│                          │    Script       │                        │
-│                          │                 │                        │
-│                          │ - Atomic op     │                        │
-│                          │ - Distributed   │                        │
-│                          │ - Low latency   │                        │
-│                          └─────────────────┘                        │
-└─────────────────────────────────────────────────────────────────────┘
+Request → Extract credentials → Determine method → Validate → Extract tenant
 ```
 
-**Rate Limit Store:**
+**Design Decision:** API keys are stored as SHA-256 hashes, never plaintext. Token fingerprints are generated for audit trails. JWT validation supports JWKS endpoints for key rotation.
 
-| Store | Use Case | Pros | Cons |
-|-------|----------|------|------|
-| **Redis** | Production, multi-instance | Distributed, atomic, fast | External dependency |
-| **Memory** | Development, single-instance | No dependency, fastest | Not distributed |
+---
 
-**Design Decision:** Redis with Lua scripts ensures atomic operations across
-distributed instances. The token bucket algorithm is implemented entirely in
-Lua to avoid race conditions.
+## Rate Limiting System
 
-### Schema Validation System
+### Algorithm
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Schema Validation Flow                           │
-│                                                                      │
-│  Incoming MCP Request                                               │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                   JSON-RPC 2.0 Validation                    │    │
-│  │                                                               │    │
-│  │  - `jsonrpc` field present and equals "2.0"                 │    │
-│  │  - `id` field present (number or string)                    │    │
-│  │  - `method` field present (string)                          │    │
-│  │  - `params` field optional (object or array)                │    │
-│  │                                                               │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                    MCP Protocol Validation                   │    │
-│  │                                                               │    │
-│  │  - Method is valid MCP method                               │    │
-│  │  - For tools/call: tool name present                        │    │
-│  │  - For tools/call: arguments match tool schema              │    │
-│  │  - For initialize: protocol version compatible              │    │
-│  │                                                               │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                   Tool Input Validation                      │    │
-│  │                                                               │    │
-│  │  - Load tool schema from upstream                           │    │
-│  │  - Validate arguments against JSON Schema                   │    │
-│  │  - Check required fields present                            │    │
-│  │  - Validate field types and constraints                     │    │
-│  │                                                               │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│           │                                                          │
-│           ▼                                                          │
-│  Valid Request → Continue to upstream                               │
-│  Invalid Request → Return -32602 (Invalid params)                   │
-└─────────────────────────────────────────────────────────────────────┘
-```
+Token bucket with configurable capacity, refill rate, and burst size. Redis-backed implementation uses atomic Lua scripts to avoid race conditions in distributed deployments.
 
-**Validation Layers:**
+**Package:** `packages/rate-limit/src/`
 
-1. **JSON-RPC 2.0** — Base protocol validation
-2. **MCP Protocol** — MCP-specific method validation
-3. **Tool Schema** — Per-tool input validation
+### Stores
 
-**Design Decision:** Tool schemas are cached after first fetch from upstream.
-Schema cache is invalidated on SIGHUP or when upstream schemas change.
+| Store | Use Case |
+|-------|----------|
+| **Redis** (`redis-store.ts`) | Production, multi-instance, atomic Lua |
+| **Memory** (`memory-store.ts`) | Development, single-instance |
 
-### Tool Allowlist System
+---
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                      Tool Allowlist Flow                             │
-│                                                                      │
-│  Request with tool name                                             │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
-│  │  Get Tenant     │───▶│  Get Allowlist  │───▶│  Match Tool     │  │
-│  │  Allowlist      │    │  Mode (allow/   │    │  Against        │  │
-│  │                 │    │  deny)          │    │  Patterns       │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘  │
-│                                                        │             │
-│                                                        ▼             │
-│                                               ┌─────────────────┐    │
-│                                               │  Pattern Match  │    │
-│                                               │                 │    │
-│                                               │ - Wildcards:    │    │
-│                                               │   glean_*       │    │
-│                                               │ - Regex:        │    │
-│                                               │   ^admin_.*     │    │
-│                                               │ - Exact:        │    │
-│                                               │   specific_tool │    │
-│                                               └─────────────────┘    │
-│                                                        │             │
-│                                                        ▼             │
-│                                               ┌─────────────────┐    │
-│                                               │  Mode Check:    │    │
-│                                               │                 │    │
-│                                               │ allow mode:     │    │
-│                                               │ matched = OK    │    │
-│                                               │                 │    │
-│                                               │ deny mode:      │    │
-│                                               │ matched = BLOCK │    │
-│                                               └─────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+## Schema Validation System
 
-**Allowlist Modes:**
+Three validation layers, all in `packages/validation/src/`:
 
-| Mode | Behavior | Use Case |
-|------|----------|----------|
-| `allow` | Only listed tools allowed | High security, explicit opt-in |
-| `deny` | Listed tools blocked | Permissive, explicit opt-out |
+1. **JSON-RPC 2.0** — `jsonrpc`, `id`, `method`, `params` structure
+2. **MCP Protocol** — Valid MCP methods, tool names
+3. **Tool Schema** — Per-tool JSON Schema validation (AJV-based)
 
-**Design Decision:** Default-deny (allow mode) is recommended for production.
-Tenants must explicitly list allowed tools, preventing accidental exposure.
+---
 
-### Fan-out Router
+## Tool Allowlist System
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                       Fan-out Router Flow                            │
-│                                                                      │
-│  Request                                                            │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
-│  │  Select         │───▶│  Send to All    │───▶│  Aggregate      │  │
-│  │  Upstreams      │    │  Upstreams      │    │  Responses      │  │
-│  │  (by weight)    │    │  (parallel)     │    │  (by strategy)  │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘  │
-│                                                        │             │
-│                                                        ▼             │
-│                                               ┌─────────────────┐    │
-│                                               │  Aggregation    │    │
-│                                               │  Strategies:    │    │
-│                                               │                 │    │
-│                                               │ - first-success:│    │
-│                                               │   return first  │    │
-│                                               │   valid         │    │
-│                                               │                 │    │
-│                                               │ - all-wait:     │    │
-│                                               │   wait all,     │    │
-│                                               │   merge results │    │
-│                                               │                 │    │
-│                                               │ - majority-vote:│    │
-│                                               │   consensus     │    │
-│                                               │   from all      │    │
-│                                               └─────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+**Package:** `packages/allowlist/src/`
 
-**Aggregation Strategies:**
+### Modes
 
-| Strategy | Behavior | Use Case |
-|----------|----------|----------|
-| `first-success` | Return first valid response | Low latency, redundancy |
-| `all-wait` | Wait for all, merge results | Data aggregation |
-| `majority-vote` | Consensus from multiple | High reliability |
+| Mode | Behavior |
+|------|----------|
+| `allow` | Only listed tools allowed (default-deny) |
+| `deny` | Listed tools blocked (default-allow) |
 
-**Design Decision:** Fan-out uses parallel requests with configurable timeout.
-Slow upstreams don't block the response — they're cancelled after timeout.
+### Pattern Matching
 
-### Response Cache
+Supports wildcards (`glean_*`, `*_search`), exact names, and version-tracked rollbacks via `dynamic-allowlist.ts`.
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Cache Flow                                    │
-│                                                                      │
-│  Request                                                            │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
-│  │  Generate       │───▶│  Check Redis    │───▶│  Cache Hit?     │  │
-│  │  Cache Key      │    │  for Key        │    │                 │  │
-│  │  (request hash) │    │                 │    │  Yes → Return   │  │
-│  └─────────────────┘    └─────────────────┘    │  Cached         │  │
-│                                                 │                 │  │
-│                                                 │  No → Continue  │  │
-│                                                 └─────────────────┘  │
-│                                                        │             │
-│                                                        ▼             │
-│                                               ┌─────────────────┐    │
-│                                               │  Send to        │    │
-│                                               │  Upstream       │    │
-│                                               └─────────────────┘    │
-│                                                        │             │
-│                                                        ▼             │
-│                                               ┌─────────────────┐    │
-│                                               │  Cache          │    │
-│                                               │  Response       │    │
-│                                               │  (if cacheable) │    │
-│                                               └─────────────────┘    │
-└─────────────────────────────────────────────────────────────────────┘
-```
+---
 
-**Cache Key Generation:**
+## Fan-out Router
+
+**Package:** `packages/fanout/src/`
+
+Includes fan-out routing (`fanout-router.ts`), response aggregation (`response-aggregator.ts`), weighted upstream selection (`upstream-selector.ts`), circuit breaker (`failover-handler.ts`), upstream MCP client (`upstream-client.ts`), retry logic (`retry-logic.ts`), health checking (`health-checker.ts`), and connection pooling (`connection-pool.ts`).
+
+### Aggregation Strategies
+
+| Strategy | Behavior |
+|----------|----------|
+| `first-success` | Return first valid response, cancel others |
+| `all-wait` | Wait for all, merge results |
+| `majority-vote` | Consensus from multiple upstreams |
+
+---
+
+## Response Cache
+
+**Package:** `packages/cache/src/`
+
+### Backends
+
+| Backend | Implementation |
+|---------|---------------|
+| **Redis** | `redis-cache.ts` |
+| **Memory** | `memory-cache.ts` (LRU eviction) |
+
+### Cache Key
 
 ```
 cache_key = SHA-256(tenant_id + method + JSON(params))
 ```
 
-**Cacheability Rules:**
+**Design Decision:** Cache keys include tenant_id to prevent cross-tenant cache pollution. Per-tool TTL strategies via `cache-strategies.ts`.
 
-| Condition | Cacheable? |
-|-----------|------------|
-| GET requests | Yes (default) |
-| tools/call with idempotent tools | Yes (configurable) |
-| tools/call with side effects | No |
-| Requests with Cache-Control: no-cache | No |
-| Responses with errors | No |
+---
 
-**Design Decision:** Cache keys include tenant_id to prevent cross-tenant cache
-pollution. Cache TTL is configurable per tool pattern for fine-grained control.
+## Audit Trail
 
-### Audit Trail
+**Package:** `packages/audit/src/`
 
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Audit Trail Flow                              │
-│                                                                      │
-│  Security Event                                                     │
-│           │                                                          │
-│           ▼                                                          │
-│  ┌─────────────────┐    ┌─────────────────┐    ┌─────────────────┐  │
-│  │  Create Audit   │───▶│  Redact PII     │───▶│  Write to       │  │
-│  │  Event          │    │                 │    │  Storage        │  │
-│  │                 │    │ - Hash tokens   │    │                 │  │
-│  │ - Timestamp     │    │ - Remove body   │    │ - File (JSON)   │  │
-│  │ - Event type    │    │ - Mask IPs      │    │ - Database      │  │
-│  │ - Context       │    │                 │    │ - SIEM          │  │
-│  └─────────────────┘    └─────────────────┘    └─────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-**Audit Event Types:**
+### Event Types
 
 | Event | Triggered When |
 |-------|----------------|
@@ -440,73 +269,50 @@ pollution. Cache TTL is configurable per tool pattern for fine-grained control.
 | `cache.miss` | Cache miss |
 | `upstream.error` | Upstream server error |
 
-**Storage Backends:**
+### Storage Backends
 
-| Backend | Use Case | Pros | Cons |
-|---------|----------|------|------|
-| **File** | Development, small deployments | Simple, no dependency | Not searchable |
-| **Database** | Production | Searchable, queryable | External dependency |
-| **SIEM** | Enterprise | Integrated with security tools | Complex setup |
+| Backend | Use Case |
+|---------|----------|
+| **Console** (`ConsoleAuditLogger`) | Development |
+| **File** (`FileAuditLogger`) | Production, JSONL format |
+| **Memory** (`MemoryAuditStorage`) | Queryable, for API access |
+
+Tamper-evident chaining via `TamperEvidentLogger` with SHA-256 event hashing and `verifyAuditChain()`.
 
 ---
 
-## Data Flow
+## Observability
 
-### Complete Request Flow
+**Package:** `packages/observability/src/`
 
-```
-1. Client sends HTTP request to gateway
-        │
-2. TLS termination (if HTTPS)
-        │
-3. Generate/extract request ID
-        │
-4. Authentication:
-   - Extract credentials from headers
-   - Validate against configured method
-   - Extract tenant ID and user info
-        │
-5. Rate limiting:
-   - Look up tenant rate limits
-   - Check token bucket in Redis
-   - Reject with 429 if exceeded
-        │
-6. Cache lookup:
-   - Generate cache key from request
-   - Check Redis for cached response
-   - Return cached response if hit
-        │
-7. Schema validation:
-   - Validate JSON-RPC 2.0 format
-   - Validate MCP protocol compliance
-   - Validate tool input schema
-        │
-8. Tool allowlist check:
-   - Get tenant's allowlist
-   - Match tool name against patterns
-   - Reject with 403 if not allowed
-        │
-9. Fan-out routing:
-   - Select upstream(s) by weight
-   - Send request in parallel
-   - Aggregate responses by strategy
-        │
-10. Cache store:
-    - If response is cacheable
-    - Store in Redis with TTL
-        │
-11. Audit logging:
-    - Create audit event
-    - Redact PII
-    - Write to storage
-        │
-12. Return response to client
-        │
-13. Observability:
-    - Close trace span
-    - Record metrics
-    - Write structured log
-```
+### Components
+
+| File | Purpose |
+|------|---------|
+| `otel.ts` | OTel SDK auto-initialization |
+| `otel.impl.ts` | OTel implementation + shutdown |
+| `metrics.ts` | Counters, histograms, gauges |
+| `tracing.ts` | Spans for auth, cache, upstream, fanout |
+| `health.ts` | Liveness, readiness, deep-health probes |
+
+### Metrics
+
+| Metric | Type | Labels |
+|--------|------|--------|
+| `gateway.requests.total` | Counter | `tenant_id`, `status` |
+| `gateway.requests.duration_ms` | Histogram | `tenant_id`, `method` |
+| `gateway.auth.attempts` | Counter | `method`, `result` |
+| `gateway.rate_limit.exceeded` | Counter | `tenant_id` |
+| `gateway.cache.hits` | Counter | `tool` |
+| `gateway.cache.misses` | Counter | `tool` |
+| `gateway.upstream.errors` | Counter | `upstream`, `error_type` |
+
+### Health Endpoints
+
+| Endpoint | Purpose |
+|----------|---------|
+| `/health` | Liveness — always returns 200 if process is running |
+| `/health/deep` | Deep — runs all registered probes, per-component status |
 
 ---
 
@@ -516,192 +322,84 @@ pollution. Cache TTL is configurable per tool pattern for fine-grained control.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
-│ Layer 1: Network                                                     │
-│ - HTTPS required in production                                       │
-│ - TLS 1.2+ enforced                                                  │
-│ - Security headers (CSP, HSTS, X-Frame-Options)                      │
-│ - Rate limiting on all endpoints                                     │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 2: Authentication                                              │
-│ - Multiple auth methods (API key, JWT, OAuth, OIDC)                  │
-│ - Cryptographic token validation                                     │
-│ - Key rotation support                                               │
-│ - Token revocation checking                                          │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 3: Authorization                                               │
-│ - Per-tenant tool allowlists                                         │
-│ - Scope-based access control                                         │
-│ - Resource isolation                                                 │
-│ - Comprehensive audit logging                                        │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 4: Input Validation                                            │
-│ - JSON Schema validation                                             │
-│ - MCP protocol compliance                                            │
-│ - Size limits on requests                                            │
-│ - SSRF protection on upstream URLs                                   │
-├─────────────────────────────────────────────────────────────────────┤
-│ Layer 5: Data Protection                                             │
-│ - PII redaction in logs                                              │
-│ - Hashed API key storage                                             │
-│ - Encrypted Redis connections                                        │
-│ - Secure secret management                                           │
+│ Layer 1: Network — HTTPS, rate limiting, TLS headers                │
+│ Layer 2: Auth — API key, JWT, OAuth, OIDC, key rotation            │
+│ Layer 3: Authorization — Per-tenant allowlists, scope-based access  │
+│ Layer 4: Input Validation — JSON Schema, MCP compliance, size limits│
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+### PII Handling
+- Never log raw tokens — only hashed identifiers
+- Never log request bodies — only metadata
+- Redact sensitive fields automatically
+- Store only hashed API keys, never plaintext
 
 ### SSRF Protection
 
 Upstream URLs are validated to reject:
 - `localhost` and `::1`
-- Private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
+- Private IP ranges (10.x, 172.16.x, 192.168.x)
 - Link-local (169.254.0.0/16)
-- Loopback (127.0.0.0/8)
 
-This validation runs regardless of environment to catch misconfigurations early.
-
-### PII Handling
-
-- **API keys** — stored as SHA-256 hashes, never plaintext
-- **Tokens** — never logged, only metadata
-- **Request bodies** — not logged (only method, tool name, status)
-- **IP addresses** — masked in logs (e.g., `192.168.1.xxx`)
-- **User identifiers** — hashed for audit logs
+Implementation: `packages/core/src/config/upstream-loader.ts`
 
 ---
 
-## Deployment Architecture
+## Data Flow
 
-### GCP Cloud Run
-
-```
-┌─────────────────────────────────────────────────────────────────────┐
-│                         Cloud Run Service                            │
-│  ┌─────────────────────────────────────────────────────────────┐    │
-│  │                    mcp-gateway Container                     │    │
-│  │  ┌───────────┐  ┌───────────┐  ┌───────────┐                │    │
-│  │  │ Gateway   │  │ OTel      │  │ Secrets   │                │    │
-│  │  │ Core      │  │ Sidecar   │  │ Mounted   │                │    │
-│  │  └───────────┘  └───────────┘  └───────────┘                │    │
-│  └─────────────────────────────────────────────────────────────┘    │
-│                                                                      │
-│  Config:                                                             │
-│  - Min instances: 1 (for low latency)                               │
-│  - Max instances: 20 (configurable)                                 │
-│  - Memory: 1GB, CPU: 1 vCPU                                         │
-│  - Timeout: 60s (configurable)                                      │
-│                                                                      │
-│  Secrets: Secret Manager → mounted as env vars                       │
-│  Observability: OTel → Cloud Monitoring / Datadog                    │
-│  State: Redis (external, Memorystore)                               │
-└─────────────────────────────────────────────────────────────────────┘
-```
-
-### Data Flow
+### Complete Request Flow
 
 ```
-1. Client sends HTTPS request
-        │
-2. Cloud Load Balancer terminates TLS
-        │
-3. Cloud Run instance receives request
-        │
-4. Gateway processes through middleware pipeline
-        │
-5. Redis lookup (cache, rate limit)
-        │
-6. Upstream call(s) via HTTPS
-        │
-7. Response cached in Redis (if applicable)
-        │
-8. Audit event written to storage
-        │
-9. Response returned to client
-        │
-10. Metrics and traces exported to OTel
+1. Client sends HTTP request → gateway
+2. express.json() parses body (10 MB limit)
+3. Generate/extract request ID
+4. authMiddleware: validate credentials, extract tenant
+5. Rate limit: check token bucket + daily quota
+6. Cache: check Redis for cached response (skip if hit)
+7. Schema: validate JSON-RPC 2.0 + MCP method params
+8. Allowlist: check tool access (tools/call only)
+9. Fan-out: select upstreams, send requests, aggregate
+10. Cache: store response (if cacheable)
+11. Audit: log event (auth result, tool execution, etc.)
+12. Return response to client
 ```
 
 ---
 
-## Failure Modes
+## Toolchain
 
-| Failure | Detection | Recovery |
-|---------|-----------|----------|
-| Auth service unavailable | Timeout on validation | Fail-closed (reject all) |
-| Redis unavailable | Connection error | Fail-open for cache, fail-closed for rate limit |
-| Upstream server error | Non-2xx response | Try next upstream, circuit breaker |
-| Schema validation error | Parse error | Return -32602 (Invalid params) |
-| Rate limit exceeded | Token bucket empty | Return 429 with Retry-After |
-| Cache miss | Key not found | Continue to upstream |
-| All upstreams unavailable | All connections failed | Return 502 with details |
-| TLS certificate expired | TLS handshake failure | Connection refused, alert |
+| Tool | Purpose |
+|------|---------|
+| **pnpm** (10.22.0) | Package manager with workspace support |
+| **turbo** (^2.5.0) | Monorepo task orchestration |
+| **tsup** (^8.4.0) | Per-package bundler (dual CJS/ESM) |
+| **TypeScript** (^5.8.3) | Type checking (`tsconfig.typecheck.json`) |
+| **vitest** (^3.1.1) | Test runner (co-located `*.test.ts` files) |
+| **Biome** (^1.9.4) | Lint + format |
+| **Changesets** (^2.28.1) | Versioning + changelog generation |
 
----
+## Deployment
 
-## Observability
+### Environment Variables
 
-### Tracing
-
-Every request generates an OpenTelemetry trace with spans for:
-- `gateway.tls` — TLS termination
-- `gateway.auth` — Authentication
-- `gateway.rate_limit` — Rate limit check
-- `gateway.cache` — Cache lookup/store
-- `gateway.validation` — Schema validation
-- `gateway.allowlist` — Tool allowlist check
-- `gateway.upstream` — Upstream call(s)
-- `gateway.fanout` — Fan-out aggregation
-- `gateway.audit` — Audit logging
-
-### Metrics
-
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `gateway.requests.total` | Counter | `tenant_id`, `status` | Total requests |
-| `gateway.requests.duration_ms` | Histogram | `tenant_id`, `method` | Request latency |
-| `gateway.auth.attempts` | Counter | `method`, `result` | Auth attempts |
-| `gateway.auth.failures` | Counter | `method`, `reason` | Auth failures |
-| `gateway.rate_limit.exceeded` | Counter | `tenant_id` | Rate limit hits |
-| `gateway.cache.hits` | Counter | `tool` | Cache hits |
-| `gateway.cache.misses` | Counter | `tool` | Cache misses |
-| `gateway.cache.size` | Gauge | — | Cache size (bytes) |
-| `gateway.upstream.requests` | Counter | `upstream`, `status` | Upstream requests |
-| `gateway.upstream.errors` | Counter | `upstream`, `error_type` | Upstream errors |
-| `gateway.upstream.latency_ms` | Histogram | `upstream` | Upstream latency |
-| `gateway.fanout.upstreams` | Histogram | — | Upstreams per fan-out |
-| `gateway.allowlist.denied` | Counter | `tenant_id`, `tool` | Allowlist denials |
-| `gateway.validation.errors` | Counter | `type` | Validation errors |
-| `gateway.audit.events` | Counter | `event_type` | Audit events |
-
-### Logging
-
-All logs are structured JSON with standard fields:
-
-```json
-{
-  "timestamp": "2026-04-15T23:00:00Z",
-  "service": "mcp-gateway",
-  "request_id": "req-abc123",
-  "tenant_id": "acme-corp",
-  "trace_id": "abc123def456",
-  "span_id": "span789",
-  "level": "info",
-  "message": "Request processed",
-  "method": "tools/call",
-  "tool": "glean_search",
-  "duration_ms": 234,
-  "cache_hit": false,
-  "upstream": "primary",
-  "status": "success",
-  "http_status": 200
-}
-```
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `PORT` | `8080` | HTTP listen port |
+| `NODE_ENV` | `development` | Environment name |
+| `REDIS_HOST` | — | Redis host |
+| `REDIS_PORT` | `6379` | Redis port |
+| `REDIS_PASSWORD` | — | Redis password |
+| `OTEL_EXPORTER_OTLP_ENDPOINT` | — | OTel collector endpoint |
+| `LOG_LEVEL` | `info` | Log level |
+| `TENANT_CONFIG_DIR` | `./tenants` | Tenant config directory |
+| `GATEWAY_CONFIG_PATH` | `./gateway.yaml` | Gateway config path |
 
 ---
 
 ## References
 
-- **AGENTS.md** — Agent development guide
-- **DEV_PLAN.md** — Development checklist
-- **README.md** — Quick start and overview
+- **AGENTS.md** — Development conventions
+- **GITHUB_TO_NPM.md** — Publishing runbook
 - **MCP Specification** — https://modelcontextprotocol.io/
 - **JSON-RPC 2.0** — https://www.jsonrpc.org/specification
-- **RFC 7662** — OAuth 2.0 Token Introspection

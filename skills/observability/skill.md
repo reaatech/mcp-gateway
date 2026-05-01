@@ -1,63 +1,61 @@
 # Observability
 
 ## Capability
-OpenTelemetry tracing and metrics, structured logging, and health check endpoints for production monitoring.
+OpenTelemetry auto-initialization, pre-built metrics, distributed tracing, health check endpoints, and structured logging.
+
+## Package
+`@reaatech/mcp-gateway-observability` — `packages/observability/src/`
+
+Logging is re-exported from `@reaatech/mcp-gateway-core` (`logger.ts`).
 
 ## Components
 | Component | Purpose |
 |-----------|---------|
-| `otel.ts` | OpenTelemetry SDK initialization and configuration |
-| `otel.impl.ts` | OTel implementation with shutdown handling |
-| `metrics.ts` | Prometheus metrics (Prometheus client) |
-| `logger.ts` | Pino structured JSON logging |
-| `health.ts` | Health check endpoints (liveness, readiness, deep) |
+| `otel.ts` | OTel SDK auto-initialization (if `OTEL_EXPORTER_OTLP_ENDPOINT` set) |
+| `otel.impl.ts` | OTel implementation: NodeSDK setup, trace/metric exporters, shutdown |
+| `metrics.ts` | Counters, histograms, gauges for gateway observability |
+| `tracing.ts` | Spans for auth, rate limit, cache, validation, allowlist, upstream, fanout |
+| `health.ts` | Liveness, readiness, deep-health probes with pluggable component checks |
 
 ## Metrics
-| Metric | Type | Labels | Description |
-|--------|------|--------|-------------|
-| `gateway.requests.total` | Counter | `tenant_id`, `status` | Total requests |
-| `gateway.requests.duration_ms` | Histogram | `tenant_id`, `method` | Request latency |
-| `gateway.auth.attempts` | Counter | `method`, `result` | Auth attempts |
-| `gateway.rate_limit.exceeded` | Counter | `tenant_id` | Rate limit hits |
-| `gateway.cache.hits` | Counter | `tool` | Cache hits |
-| `gateway.cache.misses` | Counter | `tool` | Cache misses |
-| `gateway.upstream.errors` | Counter | `upstream`, `error_type` | Upstream errors |
+| Metric | Type | Labels |
+|--------|------|--------|
+| `gateway.requests.total` | Counter | `tenant_id`, `status` |
+| `gateway.requests.duration_ms` | Histogram | `tenant_id`, `method` |
+| `gateway.auth.attempts` | Counter | `method`, `result` |
+| `gateway.rate_limit.exceeded` | Counter | `tenant_id` |
+| `gateway.cache.hits` | Counter | `tool` |
+| `gateway.cache.misses` | Counter | `tool` |
+| `gateway.upstream.errors` | Counter | `upstream`, `error_type` |
+| `gateway.fanout.upstreams` | Counter | `strategy` |
+| `gateway.validation.errors` | Counter | `type` |
+| `gateway.upstream.latency_ms` | Histogram | `upstream` |
+| `gateway.audit.events` | Counter | `event_type` |
 
 ## Health Endpoints
 | Endpoint | Purpose |
 |----------|---------|
-| `/health` | Liveness probe - always returns 200 if process is running |
-| `/health/deep` | Readiness probe - checks Redis, upstreams, tenant loader |
+| `/health` | Liveness — always returns 200 if process is running |
+| `/health/deep` | Deep — runs all registered probes, per-component status |
 
-## Structured Logging
-All logs are structured JSON with standard fields:
-```json
-{
-  "timestamp": "2026-04-15T23:00:00Z",
-  "service": "mcp-gateway",
-  "request_id": "req-abc123",
-  "tenant_id": "acme-corp",
-  "level": "info",
-  "message": "Request processed"
-}
-```
+## Health Probes
+| Export | Description |
+|--------|-------------|
+| `registerProbe(name, fn)` | Register a custom health probe |
+| `createRedisProbe(pingFn)` | Factory for Redis ping health check |
+| `createUpstreamProbe(url)` | Factory for upstream HTTP health check |
+| `resetProbes()` | Clear all probes (for testing) |
 
 ## Tracing
-Each request generates an OpenTelemetry trace with spans for:
-- `gateway.auth` — Authentication
-- `gateway.rate_limit` — Rate limit check
-- `gateway.cache` — Cache lookup
-- `gateway.validation` — Schema validation
-- `gateway.allowlist` — Tool allowlist check
-- `gateway.upstream` — Upstream call
-- `gateway.fanout` — Fan-out aggregation
+Each request generates spans for: `gateway.auth`, `gateway.rate_limit`, `gateway.cache`,
+`gateway.validation`, `gateway.allowlist`, `gateway.upstream`, `gateway.fanout`.
 
 ## Error Handling
 - OTel SDK fails gracefully if exporter unavailable
 - Metrics collection continues even if OTel fails
-- Health probe failures return 503 with details
+- Health probe failures return 503 with per-component details
 
 ## Security Considerations
-- Logs contain no raw tokens or PII (automatic redaction)
+- Logs contain no raw tokens or PII (automatic redaction via core logger)
 - Request IDs included in all log lines for traceability
-- Tenant IDs included in all log lines for multi-tenant debugging
+- Tenant IDs included in all log lines for debugging

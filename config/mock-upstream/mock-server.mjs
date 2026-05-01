@@ -3,9 +3,25 @@ import { createServer } from 'node:http';
 const PORT = 9090;
 
 const TOOLS = [
-  { name: 'echo', description: 'Echo back the input', inputSchema: { type: 'object', properties: { message: { type: 'string' } } } },
-  { name: 'glean_search', description: 'Search with Glean', inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] } },
-  { name: 'serval_query', description: 'Query Serval', inputSchema: { type: 'object', properties: { prompt: { type: 'string' } }, required: ['prompt'] } },
+  {
+    name: 'echo',
+    description: 'Echo back the input',
+    inputSchema: { type: 'object', properties: { message: { type: 'string' } } },
+  },
+  {
+    name: 'glean_search',
+    description: 'Search with Glean',
+    inputSchema: { type: 'object', properties: { query: { type: 'string' } }, required: ['query'] },
+  },
+  {
+    name: 'serval_query',
+    description: 'Query Serval',
+    inputSchema: {
+      type: 'object',
+      properties: { prompt: { type: 'string' } },
+      required: ['prompt'],
+    },
+  },
 ];
 
 const server = createServer((req, res) => {
@@ -28,7 +44,9 @@ const server = createServer((req, res) => {
 
   if (req.method === 'POST' && req.url === '/mcp') {
     let body = '';
-    req.on('data', (chunk) => { body += chunk; });
+    req.on('data', (chunk) => {
+      body += chunk;
+    });
     req.on('end', () => {
       try {
         const request = JSON.parse(body);
@@ -48,9 +66,18 @@ const server = createServer((req, res) => {
           if (!tool) {
             respondError(res, id, -32601, `Tool not found: ${toolName}`);
           } else if (toolName === 'echo') {
-            respond(res, id, { content: [{ type: 'text', text: params?.arguments?.message ?? '' }] });
+            respond(res, id, {
+              content: [{ type: 'text', text: params?.arguments?.message ?? '' }],
+            });
           } else {
-            respond(res, id, { content: [{ type: 'text', text: `Result from ${toolName}: ${JSON.stringify(params?.arguments)}` }] });
+            respond(res, id, {
+              content: [
+                {
+                  type: 'text',
+                  text: `Result from ${toolName}: ${JSON.stringify(params?.arguments)}`,
+                },
+              ],
+            });
           }
         } else {
           respondError(res, id, -32601, `Method not found: ${method}`);
