@@ -6,9 +6,7 @@
 import { createHash } from 'node:crypto';
 
 export const TEST_API_KEY = 'test-api-key-12345';
-export const TEST_API_KEY_HASH =
-  'sha256:' +
-  createHash('sha256').update(TEST_API_KEY).digest('hex');
+export const TEST_API_KEY_HASH = `sha256:${createHash('sha256').update(TEST_API_KEY).digest('hex')}`;
 
 export const TEST_TENANT_ID = 'test-tenant';
 export const TEST_REQUEST_ID = 'req-test-123';
