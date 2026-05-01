@@ -6,7 +6,6 @@ dist/
 .turbo/
 
 # Package manager
-pnpm-lock.yaml
 
 # Environment files
 .env
