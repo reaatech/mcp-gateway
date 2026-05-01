@@ -1,0 +1,18 @@
+{
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "paths": {
+      "@reaatech/mcp-gateway-core": ["./packages/core/src/index.ts"],
+      "@reaatech/mcp-gateway-auth": ["./packages/auth/src/index.ts"],
+      "@reaatech/mcp-gateway-rate-limit": ["./packages/rate-limit/src/index.ts"],
+      "@reaatech/mcp-gateway-cache": ["./packages/cache/src/index.ts"],
+      "@reaatech/mcp-gateway-allowlist": ["./packages/allowlist/src/index.ts"],
+      "@reaatech/mcp-gateway-validation": ["./packages/validation/src/index.ts"],
+      "@reaatech/mcp-gateway-fanout": ["./packages/fanout/src/index.ts"],
+      "@reaatech/mcp-gateway-audit": ["./packages/audit/src/index.ts"],
+      "@reaatech/mcp-gateway-observability": ["./packages/observability/src/index.ts"],
+      "@reaatech/mcp-gateway-gateway": ["./packages/gateway/src/index.ts"]
+    }
+  }
+}
