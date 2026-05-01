@@ -1,16 +1,19 @@
 # Audit Trail
 
 ## Capability
-Comprehensive compliance logging with PII redaction, multiple storage backends, and SIEM integration.
+Compliance audit logging with structured JSON output, multiple storage backends, tamper-evident chaining, and query API.
+
+## Package
+`@reaatech/mcp-gateway-audit` — `packages/audit/src/`
 
 ## Components
 | Component | Purpose |
 |-----------|---------|
-| `audit-engine.ts` | Core audit event processing |
-| `pii-redactor.ts` | Automatic PII detection and redaction |
-| `file-storage.ts` | File-based audit log storage |
-| `siem-exporter.ts` | SIEM integration (Splunk, QRadar) |
-| `audit-query.ts` | Audit log search and filtering |
+| `audit-logger.ts` | Core logging: ConsoleAuditLogger, FileAuditLogger, CompositeAuditLogger, TamperEvidentLogger |
+| `audit-storage.ts` | MemoryAuditStorage and FileAuditStorage backends |
+| `audit-query.ts` | Query API with filtering by tenant, event type, date range, limit |
+| `event-types.ts` | Event type configurations and severity mappings |
+| `types.ts` | AuditEvent, AuditEventType, AuditSeverity, AuditQueryParams |
 
 ## Audit Event Types
 | Event | Triggered When |
@@ -23,46 +26,41 @@ Comprehensive compliance logging with PII redaction, multiple storage backends, 
 | `cache.hit` | Cache hit |
 | `cache.miss` | Cache miss |
 | `upstream.error` | Upstream server error |
-| `config.changed` | Configuration reloaded |
-| `tenant.created` | New tenant registered |
-| `tenant.deleted` | Tenant removed |
 
 ## Audit Event Format
 ```json
 {
+  "id": "evt-abc123",
   "timestamp": "2026-04-15T23:00:00Z",
-  "event_id": "evt-abc123",
-  "event_type": "tool.executed",
-  "tenant_id": "acme-corp",
-  "user_id": "user-123",
-  "request_id": "req-xyz789",
+  "eventType": "tool.executed",
+  "severity": "low",
+  "tenantId": "acme-corp",
+  "userId": "user-123",
+  "requestId": "req-xyz789",
   "tool": "glean_search",
   "success": true,
-  "duration_ms": 234,
-  "cache_hit": false,
-  "upstream": "primary",
-  "source_ip": "192.168.1.xxx",
-  "user_agent": "Claude/1.0"
+  "durationMs": 234,
+  "cacheHit": false,
+  "upstream": "primary"
 }
 ```
 
 ## Storage Backends
-| Backend | Use Case | Retention |
-|---------|----------|-----------|
-| File (JSON) | Development, small deployments | Configurable (default: 90 days) |
-| Database | Production, searchable | Configurable |
-| SIEM | Enterprise compliance | Per SIEM policy |
+| Backend | Use Case |
+|---------|----------|
+| Console (`ConsoleAuditLogger`) | Development, stdout |
+| File (`FileAuditLogger`) | Production, JSONL format, append-only |
+| Memory (`MemoryAuditStorage`) | Queryable, for API access |
+| Composite (`CompositeAuditLogger`) | Fan-out to multiple backends |
+| Tamper-Evident (`TamperEvidentLogger`) | SHA-256 chain integrity verification |
 
 ## Error Handling
 - Audit failures never block request processing (fire-and-forget)
 - Failed audit writes logged at WARN level
-- Batch writes for high-throughput scenarios
-- Automatic retry with exponential backoff
+- Integrity verification via `computeEventHash` and `verifyAuditChain`
 
 ## Security Considerations
-- PII automatically redacted (tokens, IPs masked, bodies removed)
-- Audit logs immutable (append-only storage)
+- PII automatically redacted (tokens, IPs masked)
+- Audit logs immutable (append-only)
 - Tamper detection via hash chaining
-- Encrypted at rest (AES-256)
-- Access logging for audit log queries
-- Compliance with SOC 2, GDPR, HIPAA requirements
+- Audit log queries gated behind admin-scoped auth

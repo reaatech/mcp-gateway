@@ -1,190 +1,115 @@
 # mcp-gateway
 
-[![CI](https://github.com/anomalyco/mcp-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/anomalyco/mcp-gateway/actions/workflows/ci.yml)
-[![npm version](https://img.shields.io/npm/v/mcp-gateway.svg)](https://www.npmjs.com/package/mcp-gateway)
-[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![node](https://img.shields.io/node/v/mcp-gateway.svg)](https://nodejs.org/)
-[![Coverage](https://img.shields.io/badge/coverage-80.64%25-brightgreen.svg)](#testing)
+[![CI](https://github.com/reaatech/mcp-gateway/actions/workflows/ci.yml/badge.svg)](https://github.com/reaatech/mcp-gateway/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.8-blue)](https://www.typescriptlang.org/)
 
-**Production-grade MCP gateway with authentication, rate limiting, caching, and fan-out routing.**
+> Production-grade MCP Gateway — the "Kong/Envoy for MCP." Authenticate, rate-limit, validate, cache, and fan-out requests to upstream MCP servers.
 
-The "Kong/Envoy for MCP" — real infrastructure, not a toy.
+This monorepo provides a composable gateway framework with 10 independently versioned packages for building production MCP infrastructure at scale.
 
 ## Features
 
-| Feature | Description |
-|---------|-------------|
-| 🔐 **Authentication** | API keys, JWT, OAuth2, OIDC |
-| 🛡️ **Rate Limiting** | Per-tenant quotas with Redis backend |
-| 📝 **Schema Validation** | MCP JSON-RPC validation |
-| 🎯 **Tool Allowlists** | Per-tenant tool access control |
-| 📡 **Fan-out Routing** | Multi-upstream broadcasting |
-| 💾 **Response Caching** | Redis-backed caching |
-| 📊 **Audit Trail** | Compliance logging |
-| 🔭 **Observability** | OpenTelemetry tracing & metrics |
+- **Authentication** — API keys, JWT (JWKS), OAuth2 introspection (RFC 7662), and OIDC ID token validation
+- **Rate limiting** — Per-tenant token bucket with Redis or in-memory backends, daily quota tracking
+- **Schema validation** — JSON-RPC 2.0 and MCP method payload validation with custom per-tool schemas
+- **Tool allowlists** — Per-tenant tool access control with wildcard pattern matching and rollback support
+- **Fan-out routing** — Multi-upstream broadcasting with three aggregation strategies, circuit breaker, and retry logic
+- **Response caching** — Redis or in-memory LRU cache with per-tool TTL strategies and `Cache-Control` bypass
+- **Audit trail** — Structured JSONL audit logging with tamper-evident chaining and query API
+- **Observability** — OpenTelemetry auto-initialization, pre-built metrics, distributed tracing, and health checks
+
+## Installation
+
+### Using the packages
+
+Packages are published under the `@reaatech` scope and can be installed individually:
+
+```bash
+# Core types, config, and logging (required by all other packages)
+pnpm add @reaatech/mcp-gateway-core
+
+# Authentication strategies
+pnpm add @reaatech/mcp-gateway-auth
+
+# Rate limiting
+pnpm add @reaatech/mcp-gateway-rate-limit
+
+# Response caching
+pnpm add @reaatech/mcp-gateway-cache
+
+# Tool allowlists
+pnpm add @reaatech/mcp-gateway-allowlist
+
+# Schema validation
+pnpm add @reaatech/mcp-gateway-validation
+
+# Fan-out routing and MCP client
+pnpm add @reaatech/mcp-gateway-fanout
+
+# Audit trail logging
+pnpm add @reaatech/mcp-gateway-audit
+
+# OpenTelemetry observability
+pnpm add @reaatech/mcp-gateway-observability
+
+# Full gateway server with CLI
+pnpm add @reaatech/mcp-gateway-gateway
+```
+
+### Contributing
+
+```bash
+git clone https://github.com/reaatech/mcp-gateway.git
+cd mcp-gateway
+
+pnpm install
+pnpm build
+pnpm test
+pnpm lint
+pnpm typecheck
+```
 
 ## Quick Start
 
-```bash
-# Install dependencies
-npm install
-
-# Run type checking
-npm run typecheck
-
-# Run linting
-npm run lint
-
-# Run tests
-npm test
-
-# Start development server
-npm run dev
-```
-
-## Architecture
-
-```
-┌─────────────┐     ┌──────────────────┐     ┌─────────────────┐
-│  MCP Client │────▶│    mcp-gateway   │────▶│  Upstream MCP   │
-│  (Claude)   │     │   (Gateway Core) │     │    Servers      │
-└─────────────┘     └──────────────────┘     └─────────────────┘
-                              │
-                              ▼
-                     ┌──────────────────┐
-                     │  Redis Backend   │
-                     │  (Cache + Rate   │
-                     │   Limit + State) │
-                     └──────────────────┘
-```
-
-## Configuration
-
-### Gateway Configuration
-
-```yaml
-# gateway.yaml
-server:
-  host: "0.0.0.0"
-  port: 8080
-
-redis:
-  host: "localhost"
-  port: 6379
-
-rateLimits:
-  defaultRequestsPerMinute: 100
-  defaultRequestsPerDay: 10000
-
-cache:
-  enabled: true
-  defaultTtlSeconds: 300
-
-audit:
-  enabled: true
-  storage: "file"
-  filePath: "/var/log/gateway/audit.json"
-```
-
-### Tenant Configuration
-
-```yaml
-# tenants/acme-corp.yaml
-tenantId: "acme-corp"
-displayName: "ACME Corporation"
-
-auth:
-  apiKeys:
-    - keyHash: "sha256:abc123..."
-      name: "production-api-key"
-
-rateLimits:
-  requestsPerMinute: 1000
-  requestsPerDay: 100000
-
-allowlist:
-  mode: "allow"
-  tools:
-    - "glean_*"
-    - "serval_*"
-
-upstreams:
-  - name: "primary"
-    url: "https://mcp-server.example.com"
-    weight: 1.0
-```
-
-## API Endpoints
-
-| Endpoint | Method | Description |
-|----------|--------|-------------|
-| `/mcp` | POST | MCP JSON-RPC endpoint |
-| `/health` | GET | Liveness probe |
-| `/health/deep` | GET | Readiness probe |
-| `/api/v1/tenants` | GET | List visible tenants; all-tenant view requires admin scope |
-| `/api/v1/cache/stats` | GET | Cache statistics (admin) |
-| `/api/v1/audit` | GET | Query audit logs; cross-tenant access requires admin scope |
-
-## Environment Variables
-
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PORT` | no | `8080` | HTTP listen port |
-| `NODE_ENV` | no | `development` | Environment |
-| `REDIS_HOST` | yes | — | Redis host |
-| `REDIS_PORT` | no | `6379` | Redis port |
-| `REDIS_PASSWORD` | no | — | Redis password |
-| `OTEL_EXPORTER_OTLP_ENDPOINT` | no | — | OTel endpoint |
-| `LOG_LEVEL` | no | `info` | Log level |
-| `TENANT_CONFIG_DIR` | no | `./tenants` | Tenant config dir |
-| `GATEWAY_CONFIG_PATH` | no | `./gateway.yaml` | Gateway config |
-
-## Testing
+Run the gateway server:
 
 ```bash
-# Run all tests
-npm test
-
-# Run with coverage (threshold: 80%)
-npm run test:coverage
-
-# Run specific test file
-npm test -- tests/unit/auth.test.ts
+npx mcp-gateway start --port 8080 --config gateway.yaml
 ```
 
-**Test Coverage:** 554 tests
+Or programmatically:
 
-## FAQ
+```typescript
+import { createApp } from "@reaatech/mcp-gateway-gateway";
 
-**Q: Does mcp-gateway implement an MCP server?**
-A: No. It is a gateway/proxy that sits in front of upstream MCP servers. It handles cross-cutting concerns like auth, rate limiting, caching, and fan-out.
+const gateway = createApp();
+gateway.app.listen(8080, () => console.log("Gateway listening on :8080"));
+```
 
-**Q: Can I use it without Redis?**
-A: Yes. In-memory backends are available for rate limiting and caching. For production, Redis is recommended for horizontal scaling.
+## Packages
 
-**Q: How do I add a new tenant?**
-A: Add a YAML file to the `tenants/` directory. The gateway hot-reloads on file changes.
+| Package | Description |
+|---------|-------------|
+| [`@reaatech/mcp-gateway-core`](./packages/core) | Types, schemas, config loading, logging, and utilities |
+| [`@reaatech/mcp-gateway-auth`](./packages/auth) | API key, JWT, OAuth2, and OIDC authentication |
+| [`@reaatech/mcp-gateway-rate-limit`](./packages/rate-limit) | Per-tenant rate limiting with token bucket algorithm |
+| [`@reaatech/mcp-gateway-cache`](./packages/cache) | Redis/in-memory response caching with per-tool TTL strategies |
+| [`@reaatech/mcp-gateway-allowlist`](./packages/allowlist) | Per-tenant tool access control with wildcard patterns |
+| [`@reaatech/mcp-gateway-validation`](./packages/validation) | JSON Schema validation for MCP protocol messages |
+| [`@reaatech/mcp-gateway-fanout`](./packages/fanout) | Multi-upstream fan-out routing and MCP client connections |
+| [`@reaatech/mcp-gateway-audit`](./packages/audit) | Compliance audit trail with tamper-evident chaining |
+| [`@reaatech/mcp-gateway-observability`](./packages/observability) | OpenTelemetry tracing, metrics, and health checks |
+| [`@reaatech/mcp-gateway-gateway`](./packages/gateway) | Full Express 5 gateway server with CLI |
 
-**Q: How do I rotate API keys?**
-A: Update the `keyHash` in the tenant YAML file. The gateway picks up changes automatically via hot-reload.
+## Documentation
 
-**Q: What MCP methods are supported?**
-A: `initialize`, `tools/list`, `tools/call`, `resources/list`, `resources/read`, `prompts/list`, and `prompts/get`.
-
-## Contributing
-
-See [CONTRIBUTING.md](CONTRIBUTING.md) for development guidelines.
+- [`ARCHITECTURE.md`](./ARCHITECTURE.md) — System design, package relationships, and data flows
+- [`AGENTS.md`](./AGENTS.md) — Coding conventions and development guidelines
+- [`GITHUB_TO_NPM.md`](./GITHUB_TO_NPM.md) — Publishing runbook for npm and GitHub Packages
+- [`CONTRIBUTING.md`](./CONTRIBUTING.md) — Contribution workflow and release process
+- [`docs/`](./docs/) — Deep dives on configuration, security, and deployment
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
-
-## References
-
-- [AGENTS.md](AGENTS.md) — Agent development guide
-- [ARCHITECTURE.md](ARCHITECTURE.md) — System design deep dive
-- [DEV_PLAN.md](DEV_PLAN.md) — Development checklist
-- [docs/CONFIGURATION.md](docs/CONFIGURATION.md) — Configuration reference
-- [docs/SECURITY.md](docs/SECURITY.md) — Security guide
-- [MCP Specification](https://modelcontextprotocol.io/)
-- [JSON-RPC 2.0](https://www.jsonrpc.org/specification)
+[MIT](LICENSE)

@@ -3,20 +3,18 @@
 ## Capability
 Per-tenant rate limiting with token bucket algorithm and Redis-backed distributed state.
 
+## Package
+`@reaatech/mcp-gateway-rate-limit` — `packages/rate-limit/src/`
+
 ## Components
 | Component | Purpose |
 |-----------|---------|
-| `rate-limiter.ts` | Token bucket algorithm implementation |
-| `redis-store.ts` | Distributed rate limiting with Lua scripts |
+| `rate-limiter.ts` | Core RateLimiter class + createRateLimiter factory |
+| `redis-store.ts` | Distributed rate limiting with Redis Lua scripts |
 | `memory-store.ts` | In-memory rate limiting for development |
-| `quota-manager.ts` | Per-tenant quota configuration |
-
-## Algorithms
-| Algorithm | Use Case |
-|-----------|----------|
-| Token Bucket | General purpose, allows bursting |
-| Sliding Window | Smooth rate limiting |
-| Fixed Window | Simple, predictable |
+| `quota-manager.ts` | Daily quota tracking |
+| `token-bucket.ts` | Token bucket algorithm (capacity, refill, consume) |
+| `rate-limit.middleware.ts` | Express middleware with X-RateLimit-* headers |
 
 ## Rate Limit Headers
 | Header | Description |
@@ -27,12 +25,11 @@ Per-tenant rate limiting with token bucket algorithm and Redis-backed distribute
 | `Retry-After` | Seconds to wait before retrying (on 429) |
 
 ## Error Handling
-- **429 Too Many Requests** — Rate limit exceeded
-- Includes `Retry-After` header with seconds to wait
+- **429 Too Many Requests** — JSON-RPC error format with `retryAfter`
 - Includes current limit status in response body
+- Fallback to memory store if Redis unavailable
 
 ## Security Considerations
 - Rate limits enforced per-tenant (extracted from auth context)
 - Redis Lua scripts ensure atomic operations
 - Hard limits never exceeded (fail-closed on Redis errors)
-- Per-key rate limits supported for API keys
