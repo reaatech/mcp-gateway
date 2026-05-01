@@ -311,6 +311,12 @@ importers:
         specifier: ^5.12.1
         version: 5.12.1(@opentelemetry/api@1.9.1)
     devDependencies:
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+      '@types/express-serve-static-core':
+        specifier: ^5.0.0
+        version: 5.1.1
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
@@ -333,6 +339,12 @@ importers:
         specifier: ^8.18.0
         version: 8.20.0
     devDependencies:
+      '@types/express':
+        specifier: ^5.0.0
+        version: 5.0.6
+      '@types/express-serve-static-core':
+        specifier: ^5.0.0
+        version: 5.1.1
       '@types/node':
         specifier: ^25.6.0
         version: 25.6.0
