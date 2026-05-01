@@ -46,6 +46,7 @@
     "typescript": "^5.8.3",
     "vitest": "^3.1.1",
     "@reaatech/mcp-gateway-allowlist": "workspace:*",
-    "@types/express": "^5.0.0"
+    "@types/express": "^5.0.0",
+    "@types/express-serve-static-core": "^5.0.0"
   }
 }
