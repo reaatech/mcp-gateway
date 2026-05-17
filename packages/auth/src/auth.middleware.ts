@@ -60,7 +60,7 @@ function extractApiKey(req: Request): string | undefined {
  */
 function extractBearerToken(req: Request): string | undefined {
   const authHeader = req.headers.authorization;
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+  if (!authHeader?.startsWith('Bearer ')) {
     return undefined;
   }
   return authHeader.slice(7);
