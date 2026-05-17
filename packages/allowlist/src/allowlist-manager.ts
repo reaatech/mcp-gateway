@@ -38,7 +38,7 @@ export function checkToolAccess(
   toolName: string,
   allowlist: ToolAllowlist | undefined,
 ): AllowlistCheckResult {
-  if (!allowlist || !allowlist.tools || allowlist.tools.length === 0) {
+  if (!allowlist?.tools || allowlist.tools.length === 0) {
     // No allowlist configured - default allow
     return { allowed: true, reason: 'No allowlist configured' };
   }
