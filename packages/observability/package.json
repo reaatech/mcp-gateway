@@ -37,16 +37,16 @@
   "dependencies": {
     "@reaatech/mcp-gateway-core": "workspace:*",
     "@opentelemetry/api": "^1.9.0",
-    "@opentelemetry/exporter-metrics-otlp-http": "^0.52.0",
-    "@opentelemetry/exporter-trace-otlp-http": "^0.52.0",
-    "@opentelemetry/instrumentation-express": "^0.47.0",
-    "@opentelemetry/instrumentation-http": "^0.52.0",
-    "@opentelemetry/sdk-metrics": "^1.25.0",
-    "@opentelemetry/sdk-node": "^0.52.0",
+    "@opentelemetry/exporter-metrics-otlp-http": "^0.218.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.218.0",
+    "@opentelemetry/instrumentation-express": "^0.66.0",
+    "@opentelemetry/instrumentation-http": "^0.218.0",
+    "@opentelemetry/sdk-metrics": "^2.7.0",
+    "@opentelemetry/sdk-node": "^0.218.0",
     "pino": "^8.18.0",
-    "@opentelemetry/resources": "^1.25.0",
-    "@opentelemetry/sdk-trace-base": "^1.25.0",
-    "@opentelemetry/semantic-conventions": "^1.25.0"
+    "@opentelemetry/resources": "^2.7.0",
+    "@opentelemetry/sdk-trace-base": "^2.7.0",
+    "@opentelemetry/semantic-conventions": "^1.29.0"
   },
   "devDependencies": {
     "@types/node": "^25.6.0",
