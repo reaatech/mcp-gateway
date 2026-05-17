@@ -43,7 +43,7 @@
     "@opentelemetry/instrumentation-http": "^0.218.0",
     "@opentelemetry/sdk-metrics": "^2.7.0",
     "@opentelemetry/sdk-node": "^0.218.0",
-    "pino": "^8.18.0",
+    "pino": "^10.3.1",
     "@opentelemetry/resources": "^2.7.0",
     "@opentelemetry/sdk-trace-base": "^2.7.0",
     "@opentelemetry/semantic-conventions": "^1.29.0"
