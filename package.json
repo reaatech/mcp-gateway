@@ -54,6 +54,12 @@
     "node": ">=22.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild"]
+    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild"],
+    "overrides": {
+      "fast-uri": "3.1.2",
+      "hono": "4.12.19",
+      "ip-address": "10.1.1",
+      "protobufjs": "8.0.3"
+    }
   }
 }
