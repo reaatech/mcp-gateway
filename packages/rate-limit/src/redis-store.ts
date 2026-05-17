@@ -235,7 +235,7 @@ export class RedisRateLimitStore implements RateLimitStore {
 
     try {
       const data = await this.client.hGetAll(rateKey);
-      if (!data || !data.tokens) {
+      if (!data?.tokens) {
         return config.burstSize ?? config.requestsPerMinute;
       }
 

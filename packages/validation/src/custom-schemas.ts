@@ -97,7 +97,7 @@ export class CustomSchemaManager {
   validateOutput(toolName: string, output: unknown): ValidationResult {
     const schema = this.toolSchemas.get(toolName);
 
-    if (!schema || !schema.outputSchema) {
+    if (!schema?.outputSchema) {
       // No output schema registered, skip validation
       return { valid: true, errors: [] };
     }
