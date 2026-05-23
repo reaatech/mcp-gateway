@@ -10,20 +10,18 @@ updates:
     versioning-strategy: increase
     allow:
       - dependency-type: "direct"
-        update-types:
-          - "major"
-          - "patch"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-minor"]
     groups:
       production-deps:
+        patterns:
+          - "*"
         dependency-type: "production"
-        update-types:
-          - "major"
-          - "patch"
       development-deps:
+        patterns:
+          - "*"
         dependency-type: "development"
-        update-types:
-          - "major"
-          - "patch"
     labels:
       - "dependencies"
       - "dependabot"
