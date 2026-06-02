@@ -3,9 +3,13 @@
  * Configures tracing and metrics export
  */
 
-import { env, isProduction } from '@reaatech/mcp-gateway-core';
-import { SERVICE_NAME, SERVICE_VERSION } from '@reaatech/mcp-gateway-core';
-import { logger } from '@reaatech/mcp-gateway-core';
+import {
+  env,
+  isProduction,
+  logger,
+  SERVICE_NAME,
+  SERVICE_VERSION,
+} from '@reaatech/mcp-gateway-core';
 
 function initOpenTelemetry(): void {
   const otelEndpoint = env.OTEL_EXPORTER_OTLP_ENDPOINT;

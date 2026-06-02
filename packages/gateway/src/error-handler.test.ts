@@ -5,11 +5,11 @@
 import type { NextFunction, Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import {
-  JSONRPC_ERRORS,
   categoryToErrorCode,
   categoryToHttpStatus,
   error_handlerMiddleware,
   formatJsonRpcError,
+  JSONRPC_ERRORS,
 } from './error-handler.js';
 
 describe('JSONRPC_ERRORS', () => {

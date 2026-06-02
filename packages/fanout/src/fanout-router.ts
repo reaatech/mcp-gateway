@@ -8,10 +8,10 @@ import { aggregateResponses } from './response-aggregator.js';
 import type {
   AggregationStrategy,
   FanOutResult,
+  JsonRpcRequest,
   UpstreamResponse,
   UpstreamTarget,
 } from './types.js';
-import type { JsonRpcRequest } from './types.js';
 import { createJsonRpcRequest, sendUpstreamRequest } from './upstream-client.js';
 import { selectUpstreams } from './upstream-selector.js';
 

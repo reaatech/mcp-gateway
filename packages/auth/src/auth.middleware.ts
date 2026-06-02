@@ -3,9 +3,8 @@
  * Main middleware that orchestrates all authentication methods
  */
 
-import { getTenant, listTenants } from '@reaatech/mcp-gateway-core';
 import type { TenantConfig } from '@reaatech/mcp-gateway-core';
-import { logger } from '@reaatech/mcp-gateway-core';
+import { getTenant, listTenants, logger } from '@reaatech/mcp-gateway-core';
 import type { NextFunction, Request, Response } from 'express';
 import { findTenantForApiKey, validateApiKey } from './api-key-validator.js';
 import type { AuthContext } from './auth-context.js';

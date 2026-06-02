@@ -4,64 +4,56 @@
  */
 
 export {
-  executeFanout,
-  executeFanoutFirstSuccess,
-  setUpstreamCaller,
-  resetUpstreamCaller,
-  type UpstreamCaller,
-} from './fanout-router.js';
-
-export { aggregateResponses } from './response-aggregator.js';
-
+  ConnectionPool,
+  DEFAULT_POOL_CONFIG,
+} from './connection-pool.js';
 export {
-  selectUpstreams,
-  selectRoundRobin,
-  selectWeightedRandom,
-  selectByHealth,
-} from './upstream-selector.js';
-
-export {
+  filterHealthyUpstreams,
   isCircuitOpen,
   recordFailure,
   recordSuccess,
   retryWithBackoff,
-  filterHealthyUpstreams,
 } from './failover-handler.js';
-
+export {
+  executeFanout,
+  executeFanoutFirstSuccess,
+  resetUpstreamCaller,
+  setUpstreamCaller,
+  type UpstreamCaller,
+} from './fanout-router.js';
+export {
+  DEFAULT_HEALTH_CHECK_CONFIG,
+  HealthChecker,
+} from './health-checker.js';
+export { aggregateResponses } from './response-aggregator.js';
+export {
+  calculateBackoff,
+  DEFAULT_RETRY_CONFIG,
+  isRetryableError,
+  sendWithRetry,
+} from './retry-logic.js';
+export type {
+  AggregationStrategy,
+  ConnectionPoolConfig,
+  FanOutResult,
+  HealthCheckConfig,
+  HealthStatus,
+  JsonRpcError,
+  JsonRpcRequest,
+  JsonRpcResponse,
+  RetryConfig,
+  UpstreamCallResponse,
+  UpstreamConfig,
+  UpstreamResponse,
+  UpstreamTarget,
+} from './types.js';
 export {
   createJsonRpcRequest,
   sendUpstreamRequest,
 } from './upstream-client.js';
-
 export {
-  ConnectionPool,
-  DEFAULT_POOL_CONFIG,
-} from './connection-pool.js';
-
-export {
-  HealthChecker,
-  DEFAULT_HEALTH_CHECK_CONFIG,
-} from './health-checker.js';
-
-export {
-  sendWithRetry,
-  calculateBackoff,
-  isRetryableError,
-  DEFAULT_RETRY_CONFIG,
-} from './retry-logic.js';
-
-export type {
-  AggregationStrategy,
-  UpstreamTarget,
-  UpstreamResponse,
-  UpstreamCallResponse,
-  FanOutResult,
-  HealthStatus,
-  UpstreamConfig,
-  JsonRpcRequest,
-  JsonRpcResponse,
-  JsonRpcError,
-  RetryConfig,
-  ConnectionPoolConfig,
-  HealthCheckConfig,
-} from './types.js';
+  selectByHealth,
+  selectRoundRobin,
+  selectUpstreams,
+  selectWeightedRandom,
+} from './upstream-selector.js';

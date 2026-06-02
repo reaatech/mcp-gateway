@@ -4,12 +4,12 @@
 
 import { describe, expect, it } from 'vitest';
 import {
-  JSONRPC_ERRORS,
   categoryToErrorCode,
   categoryToHttpStatus,
   formatJsonRpcError,
+  JSONRPC_ERRORS,
 } from './error-handler.js';
-import { logUpstreamCall, loggingMiddleware } from './logging.js';
+import { loggingMiddleware, logUpstreamCall } from './logging.js';
 import { createPipeline } from './pipeline.js';
 import { request_idMiddleware } from './request-id.js';
 import { withTimeout } from './timeout.js';

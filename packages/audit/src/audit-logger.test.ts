@@ -5,9 +5,9 @@
 import { describe, expect, it } from 'vitest';
 import {
   ConsoleAuditLogger,
-  FileAuditLogger,
   computeEventHash,
   createAuditEvent,
+  FileAuditLogger,
 } from './audit-logger.js';
 
 describe('audit-logger', () => {

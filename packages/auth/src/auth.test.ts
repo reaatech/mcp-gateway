@@ -11,8 +11,8 @@ import {
   getRedactedAuthContext,
   hasAllScopes,
   hasAnyScope,
-  hasScope,
   hashApiKey,
+  hasScope,
   isJwtExpired,
   validateApiKey,
 } from './index.js';

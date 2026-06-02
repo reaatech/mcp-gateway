@@ -12,39 +12,38 @@ import {
   type AuditLogger,
   CompositeAuditLogger,
   ConsoleAuditLogger,
+  createAuditEvent,
   FileAuditLogger,
   MemoryAuditStorage,
-  createAuditEvent,
 } from '@reaatech/mcp-gateway-audit';
 import { AuthenticationError, authMiddleware, hasAnyScope } from '@reaatech/mcp-gateway-auth';
-import { CacheManager } from '@reaatech/mcp-gateway-cache';
-import { cacheMiddleware } from '@reaatech/mcp-gateway-cache';
+import { CacheManager, cacheMiddleware } from '@reaatech/mcp-gateway-cache';
 import {
   API_V1_PREFIX,
   DEEP_HEALTH_ENDPOINT,
   DEFAULT_UPSTREAM_TIMEOUT_MS,
-  HEALTH_ENDPOINT,
-  MAX_REQUEST_BODY_SIZE,
-  MCP_ENDPOINT,
-  SERVICE_NAME,
-  SERVICE_VERSION,
   env,
   getTenant,
+  HEALTH_ENDPOINT,
   isDevelopment,
   listTenants,
   loadTenantsAsync,
   logConfigSummary,
   logger,
+  MAX_REQUEST_BODY_SIZE,
+  MCP_ENDPOINT,
+  SERVICE_NAME,
+  SERVICE_VERSION,
   startWatching,
   stopWatching,
 } from '@reaatech/mcp-gateway-core';
 import {
   type AggregationStrategy,
-  type UpstreamCaller,
-  type UpstreamTarget,
   executeFanout,
   filterHealthyUpstreams,
   setUpstreamCaller,
+  type UpstreamCaller,
+  type UpstreamTarget,
 } from '@reaatech/mcp-gateway-fanout';
 import {
   allowlistDenied,
@@ -54,7 +53,10 @@ import {
   cacheHits as cacheHitsCounter,
   cacheMisses as cacheMissesCounter,
   fanoutUpstreams,
+  getDeepHealth,
+  getLiveness,
   rateLimitExceeded,
+  registerProbe,
   requestDurationMs,
   requestsTotal,
   updateCacheSize,
@@ -64,11 +66,14 @@ import {
   upstreamRequests,
   validationErrors,
 } from '@reaatech/mcp-gateway-observability';
-import { getDeepHealth, getLiveness, registerProbe } from '@reaatech/mcp-gateway-observability';
-import { type RateLimiter, createRateLimiter } from '@reaatech/mcp-gateway-rate-limit';
-import { addRateLimitHeaders, rateLimitErrorResponse } from '@reaatech/mcp-gateway-rate-limit';
+import {
+  addRateLimitHeaders,
+  createRateLimiter,
+  type RateLimiter,
+  rateLimitErrorResponse,
+} from '@reaatech/mcp-gateway-rate-limit';
 import { createValidationMiddleware } from '@reaatech/mcp-gateway-validation';
-import express, { type Express, type Request, type Response, type NextFunction } from 'express';
+import express, { type Express, type NextFunction, type Request, type Response } from 'express';
 import { error_handlerMiddleware } from './error-handler.js';
 import { request_idMiddleware } from './request-id.js';
 

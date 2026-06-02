@@ -2,35 +2,33 @@
  * mcp-gateway — Audit Trail Barrel Exports
  */
 
+export type { AuditLogger } from './audit-logger.js';
 export {
-  createAuditEvent,
-  ConsoleAuditLogger,
-  FileAuditLogger,
   CompositeAuditLogger,
-  TamperEvidentLogger,
+  ConsoleAuditLogger,
   computeEventHash,
+  createAuditEvent,
+  FileAuditLogger,
+  TamperEvidentLogger,
   verifyAuditChain,
 } from './audit-logger.js';
-export type { AuditLogger } from './audit-logger.js';
-
+export { createAuditQueryService } from './audit-query.js';
 export {
-  MemoryAuditStorage,
   FileAuditStorage,
+  MemoryAuditStorage,
 } from './audit-storage.js';
 
-export { createAuditQueryService } from './audit-query.js';
-
 export {
-  getEventTypeConfig,
-  getEventSeverity,
   EVENT_TYPE_CONFIGS,
+  getEventSeverity,
+  getEventTypeConfig,
 } from './event-types.js';
 
 export type {
   AuditEvent,
   AuditEventType,
-  AuditSeverity,
-  AuditStorageType,
-  AuditStorageConfig,
   AuditQueryParams,
+  AuditSeverity,
+  AuditStorageConfig,
+  AuditStorageType,
 } from './types.js';

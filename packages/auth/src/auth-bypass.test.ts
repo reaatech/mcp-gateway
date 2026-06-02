@@ -5,8 +5,8 @@
 
 import { createHash } from 'node:crypto';
 import { checkToolAccess } from '@reaatech/mcp-gateway-allowlist';
-import { validateUpstreamUrl } from '@reaatech/mcp-gateway-core';
 import type { TenantConfig } from '@reaatech/mcp-gateway-core';
+import { validateUpstreamUrl } from '@reaatech/mcp-gateway-core';
 import { describe, expect, it } from 'vitest';
 import { hashApiKey, validateApiKey } from './api-key-validator.js';
 

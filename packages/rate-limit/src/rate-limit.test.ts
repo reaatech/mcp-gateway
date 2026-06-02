@@ -2,16 +2,17 @@
  * mcp-gateway — Rate Limiting Unit Tests
  */
 
+import type { RateLimitConfig } from '@reaatech/mcp-gateway-rate-limit';
 import {
   consumeTokens,
   createBucketState,
+  createMemoryStore,
+  createRateLimiter,
   createTokenBucketConfig,
+  type MemoryRateLimitStore,
+  QuotaManager,
   timeUntilAvailable,
 } from '@reaatech/mcp-gateway-rate-limit';
-import { type MemoryRateLimitStore, createMemoryStore } from '@reaatech/mcp-gateway-rate-limit';
-import { QuotaManager } from '@reaatech/mcp-gateway-rate-limit';
-import { createRateLimiter } from '@reaatech/mcp-gateway-rate-limit';
-import type { RateLimitConfig } from '@reaatech/mcp-gateway-rate-limit';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 const DEFAULT_CONFIG: RateLimitConfig = {

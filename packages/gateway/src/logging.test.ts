@@ -4,7 +4,7 @@
 
 import type { NextFunction, Request, Response } from 'express';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { logUpstreamCall, loggingMiddleware } from './logging.js';
+import { loggingMiddleware, logUpstreamCall } from './logging.js';
 import type { PipelineContext } from './types.js';
 
 describe('loggingMiddleware', () => {

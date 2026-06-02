@@ -2,19 +2,19 @@
  * mcp-gateway — Cache Barrel Exports
  */
 
-export { CacheManager } from './cache-manager.js';
-export { MemoryCache } from './memory-cache.js';
-export { RedisCache } from './redis-cache.js';
 export { cacheMiddleware } from './cache.middleware.js';
+export { CacheManager } from './cache-manager.js';
 export {
   createCacheStrategies,
-  shouldCacheTool,
   DEFAULT_CACHE_STRATEGIES,
+  shouldCacheTool,
 } from './cache-strategies.js';
+export { MemoryCache } from './memory-cache.js';
+export { RedisCache } from './redis-cache.js';
 
 export type {
-  CacheEntry,
   CacheConfig,
+  CacheEntry,
   CacheStats,
   ToolCacheStrategy,
 } from './types.js';

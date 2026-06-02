@@ -4,11 +4,10 @@
  */
 
 import { createHash } from 'node:crypto';
-import { type UpstreamCaller, resetUpstreamCaller } from '@reaatech/mcp-gateway-fanout';
-import { resetProbes } from '@reaatech/mcp-gateway-observability';
-import { resetMetricsState } from '@reaatech/mcp-gateway-observability';
+import { resetUpstreamCaller, type UpstreamCaller } from '@reaatech/mcp-gateway-fanout';
+import { resetMetricsState, resetProbes } from '@reaatech/mcp-gateway-observability';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { type GatewayApp, createApp } from './index.js';
+import { createApp, type GatewayApp } from './index.js';
 
 process.env.NODE_ENV = 'test';
 process.env.MCP_GATEWAY_DISABLE_AUTOSTART = '1';

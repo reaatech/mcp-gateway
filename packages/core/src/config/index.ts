@@ -3,50 +3,44 @@
  * Central export point for all configuration modules
  */
 
-// Environment configuration (always loaded first)
-export { env, isProduction, isDevelopment, isTest, logConfigSummary } from './env.js';
-export type { EnvConfig } from './env.js';
-
+export type { GatewayConfig, TenantConfig, UpstreamServer } from '../types/schemas.js';
 // Constants
 export * from './constants.js';
-
+export type { EnvConfig } from './env.js';
+// Environment configuration (always loaded first)
+export { env, isDevelopment, isProduction, isTest, logConfigSummary } from './env.js';
 // Gateway configuration
 export {
+  clearConfigLoaderDependencies,
   getGatewayConfig,
   loadGatewayConfig,
-  setConfigLoaderDependencies,
-  clearConfigLoaderDependencies,
   resetGatewayConfig,
+  setConfigLoaderDependencies,
 } from './gateway-config.js';
-export type { GatewayConfig } from '../types/schemas.js';
-
 // Tenant loader
 export {
+  clearTenants,
+  getTenant,
+  getTenantIds,
+  hasTenant,
+  listTenants,
   loadTenants,
   loadTenantsAsync,
-  startWatching,
-  stopWatching,
-  getTenant,
-  setTenant,
-  clearTenants,
-  listTenants,
-  hasTenant,
-  getTenantIds,
   reloadTenantFile,
   removeTenantFile,
+  setTenant,
+  startWatching,
+  stopWatching,
 } from './tenant-loader.js';
-export type { TenantConfig } from '../types/schemas.js';
-
 // Upstream loader
 export {
+  getHealthyUpstreams,
+  getUpstreamByName,
+  getUpstreams,
+  getWeightedUpstreams,
+  markUpstreamHealthy,
+  validateAllUpstreams,
+  validateTenantUpstreams,
   validateUpstreamUrl,
   validateUpstreamUrlAsync,
-  getUpstreams,
-  getHealthyUpstreams,
-  markUpstreamHealthy,
-  validateTenantUpstreams,
-  validateAllUpstreams,
-  getUpstreamByName,
-  getWeightedUpstreams,
 } from './upstream-loader.js';
-export type { UpstreamServer } from '../types/schemas.js';
