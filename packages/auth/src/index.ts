@@ -2,48 +2,43 @@
  * mcp-gateway — Auth Module Barrel Export
  */
 
+export type { ApiKeyValidationResult } from './api-key-validator.js';
+// API Key
+export { findTenantForApiKey, hashApiKey, validateApiKey } from './api-key-validator.js';
+// Middleware
+export {
+  AuthenticationError,
+  authMiddleware,
+  getAuth,
+  optionalAuthMiddleware,
+  requireAuth,
+} from './auth.middleware.js';
 // Types
 export type { AuthContext, AuthMethod } from './auth-context.js';
 export {
   createAuthContext,
-  hasScope,
-  hasAnyScope,
-  hasAllScopes,
-  getRedactedAuthContext,
   generateTokenFingerprint,
   generateTokenFingerprintSync,
+  getRedactedAuthContext,
+  hasAllScopes,
+  hasAnyScope,
+  hasScope,
 } from './auth-context.js';
-
-// API Key
-export { hashApiKey, validateApiKey, findTenantForApiKey } from './api-key-validator.js';
-export type { ApiKeyValidationResult } from './api-key-validator.js';
-
-// JWT
-export { validateJwt, decodeJwtUnsafe, isJwtExpired } from './jwt-validator.js';
 export type { JwtValidationResult } from './jwt-validator.js';
-
+// JWT
+export { decodeJwtUnsafe, isJwtExpired, validateJwt } from './jwt-validator.js';
+export type { IntrospectionResult } from './oauth-introspection.js';
 // OAuth
 export {
-  introspectToken,
   clearIntrospectionCache,
   getIntrospectionCacheStats,
+  introspectToken,
   shutdownOAuthIntrospection,
 } from './oauth-introspection.js';
-export type { IntrospectionResult } from './oauth-introspection.js';
-
+export type { OidcValidationResult } from './oidc-validator.js';
 // OIDC
 export {
-  validateOidcIdToken,
-  validateNonce,
   extractUserInfoFromIdToken,
+  validateNonce,
+  validateOidcIdToken,
 } from './oidc-validator.js';
-export type { OidcValidationResult } from './oidc-validator.js';
-
-// Middleware
-export {
-  authMiddleware,
-  optionalAuthMiddleware,
-  requireAuth,
-  getAuth,
-  AuthenticationError,
-} from './auth.middleware.js';

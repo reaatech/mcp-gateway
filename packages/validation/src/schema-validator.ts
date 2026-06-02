@@ -4,8 +4,8 @@
  * Core JSON Schema validation engine using AJV for MCP messages.
  */
 
-import AjvDefault from 'ajv';
 import type { ErrorObject, ValidateFunction } from 'ajv';
+import AjvDefault from 'ajv';
 import { jsonRpcRequestSchema, mcpMethodSchemas } from './mcp-schema.js';
 import type { SchemaCacheEntry, ValidationError, ValidationResult } from './types.js';
 import { JSONRPC_ERRORS } from './types.js';

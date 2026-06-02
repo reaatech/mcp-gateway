@@ -3,8 +3,8 @@
  * Loads tenant configs from YAML files with hot-reload support
  */
 
-import { existsSync, readFileSync, readdirSync, watch } from 'node:fs';
 import type { FSWatcher } from 'node:fs';
+import { existsSync, readdirSync, readFileSync, watch } from 'node:fs';
 import { createRequire } from 'node:module';
 import { join, resolve } from 'node:path';
 import { logger } from '../logger.js';

@@ -2,28 +2,26 @@
  * mcp-gateway — Rate Limiting Module
  */
 
-export { RateLimiter, createRateLimiter } from './rate-limiter.js';
-export { MemoryRateLimitStore, createMemoryStore } from './memory-store.js';
-export { RedisRateLimitStore, createRedisStore } from './redis-store.js';
+export { createMemoryStore, MemoryRateLimitStore } from './memory-store.js';
 export { QuotaManager } from './quota-manager.js';
 export {
+  addRateLimitHeaders,
   createRateLimitMiddleware,
   rateLimitErrorResponse,
-  addRateLimitHeaders,
 } from './rate-limit.middleware.js';
+export { createRateLimiter, RateLimiter } from './rate-limiter.js';
+export { createRedisStore, RedisRateLimitStore } from './redis-store.js';
+export type { TokenBucketConfig, TokenBucketState } from './token-bucket.js';
 export {
-  createTokenBucketConfig,
   consumeTokens,
-  timeUntilAvailable,
   createBucketState,
+  createTokenBucketConfig,
+  timeUntilAvailable,
 } from './token-bucket.js';
-
 export type {
-  RateLimitResult,
-  RateLimitConfig,
-  RateLimitStore,
   QuotaResult,
+  RateLimitConfig,
+  RateLimitResult,
+  RateLimitStore,
   RateLimitStoreType,
 } from './types.js';
-
-export type { TokenBucketState, TokenBucketConfig } from './token-bucket.js';

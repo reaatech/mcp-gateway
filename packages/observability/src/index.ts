@@ -5,14 +5,14 @@
 
 import './otel.js';
 
-export * from './metrics.js';
-export * from './tracing.js';
-export * from './health.js';
-export { shutdownOTel } from './otel.impl.js';
 export {
-  logger,
   childLogger,
-  redactToken,
-  type Logger,
   type LogContext,
+  type Logger,
+  logger,
+  redactToken,
 } from '@reaatech/mcp-gateway-core';
+export * from './health.js';
+export * from './metrics.js';
+export { shutdownOTel } from './otel.impl.js';
+export * from './tracing.js';

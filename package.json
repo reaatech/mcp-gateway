@@ -42,10 +42,10 @@
   },
   "homepage": "https://github.com/reaatech/mcp-gateway#readme",
   "devDependencies": {
-    "@biomejs/biome": "^1.9.4",
+    "@biomejs/biome": "^2.4.16",
     "@changesets/changelog-github": "^0.6.0",
     "@changesets/cli": "^2.28.1",
-    "@vitest/coverage-v8": "3.2.4",
+    "@vitest/coverage-v8": "4.1.0",
     "turbo": "^2.9.14",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1"
@@ -54,12 +54,18 @@
     "node": ">=22.0.0"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@biomejs/biome", "esbuild"],
+    "onlyBuiltDependencies": [
+      "@biomejs/biome",
+      "esbuild"
+    ],
     "overrides": {
       "fast-uri": "3.1.2",
       "hono": "4.12.19",
       "ip-address": "10.1.1",
-      "protobufjs": "8.0.3"
+      "brace-expansion": "5.0.6",
+      "protobufjs": "8.2.0",
+      "qs": "6.15.2",
+      "vitest": "4.1.0"
     }
   }
 }

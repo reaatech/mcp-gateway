@@ -3,7 +3,7 @@
  * Counters, histograms, and gauges for gateway observability
  */
 
-import { type Counter, type Histogram, type ObservableGauge, metrics } from '@opentelemetry/api';
+import { type Counter, type Histogram, metrics, type ObservableGauge } from '@opentelemetry/api';
 import { SERVICE_NAME } from '@reaatech/mcp-gateway-core';
 
 const meter = metrics.getMeter(SERVICE_NAME);
