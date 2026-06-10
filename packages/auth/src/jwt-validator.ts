@@ -141,7 +141,7 @@ export function decodeJwtUnsafe(token: string): { header: unknown; payload: unkn
  */
 export function isJwtExpired(token: string): boolean {
   const decoded = decodeJwtUnsafe(token);
-  if (!decoded || !decoded.payload) {
+  if (!decoded?.payload) {
     return true; // Treat invalid tokens as expired
   }
 
