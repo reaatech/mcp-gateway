@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/mcp-gateway-observability",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Structured logging, tracing, and metrics for mcp-gateway",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

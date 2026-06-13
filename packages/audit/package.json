@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/mcp-gateway-audit",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Compliance audit trail logging for mcp-gateway",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

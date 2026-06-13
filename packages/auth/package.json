@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/mcp-gateway-auth",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "description": "Pluggable authentication for mcp-gateway (API key, JWT, OAuth, OIDC)",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
