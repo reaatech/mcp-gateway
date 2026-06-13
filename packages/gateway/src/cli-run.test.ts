@@ -2,7 +2,7 @@
  * mcp-gateway — CLI Unit Tests
  */
 
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { clearCliDependencies, runCli, setCliDependencies } from './cli.js';
 
 describe('CLI', () => {
@@ -78,6 +78,84 @@ describe('CLI', () => {
 
       expect(result.code).toBe(1);
       expect(result.error).toBeDefined();
+    });
+
+    it('prints help when -h flag provided', async () => {
+      setCliDependencies({
+        stdout: (msg) => stdoutOutput.push(msg),
+        stderr: (msg) => stderrOutput.push(msg),
+        exit: (_code) => {
+          /* noop for tests */
+        },
+        args: ['-h'],
+      });
+
+      const result = await runCli(['-h']);
+
+      expect(result.code).toBe(0);
+    });
+  });
+
+  describe('command dispatching', () => {
+    beforeEach(() => {
+      vi.spyOn(console, 'log').mockImplementation(() => {});
+      vi.spyOn(console, 'error').mockImplementation(() => {});
+      vi.spyOn(process, 'exit').mockImplementation(() => undefined as never);
+      vi.stubGlobal(
+        'fetch',
+        vi.fn().mockResolvedValue({
+          ok: true,
+          status: 200,
+          json: () => Promise.resolve({}),
+          headers: new Headers(),
+        }),
+      );
+    });
+
+    afterEach(() => {
+      clearCliDependencies();
+      vi.restoreAllMocks();
+      vi.unstubAllGlobals();
+    });
+
+    it('dispatches to start command', async () => {
+      const result = await runCli(['start']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to start command with custom port', async () => {
+      const result = await runCli(['start', '--port', '9090']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to health command', async () => {
+      const result = await runCli(['health']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to cache-stats command', async () => {
+      const result = await runCli(['cache-stats']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to list-tenants command', async () => {
+      const result = await runCli(['list-tenants']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to list-upstreams command', async () => {
+      const result = await runCli(['list-upstreams']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to rate-limit-status command', async () => {
+      const result = await runCli(['rate-limit-status']);
+      expect(result).toEqual({ code: 0 });
+    });
+
+    it('dispatches to validate-config command', async () => {
+      const result = await runCli(['validate-config']);
+      expect(result).toEqual({ code: 0 });
     });
   });
 

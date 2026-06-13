@@ -241,4 +241,59 @@ describe('error_handlerMiddleware', () => {
       }),
     );
   });
+
+  it('derives HTTP status from category when statusCode not set', () => {
+    const error = new Error('Rate limited') as Error & { category?: string; statusCode?: number };
+    error.category = 'rate_limit';
+
+    const middleware = error_handlerMiddleware();
+    middleware(error, mockReq as Request, mockRes as Response, mockNext);
+
+    expect(mockRes.status).toHaveBeenCalledWith(429);
+  });
+
+  it('includes stack in error data in NODE_ENV=development on /mcp path', () => {
+    const origEnv = process.env.NODE_ENV;
+    process.env.NODE_ENV = 'development';
+    const error = new Error('Dev error');
+    error.stack = 'Error: Dev error\n    at Test.fn (file.ts:1:1)';
+
+    const middleware = error_handlerMiddleware();
+    middleware(error, mockReq as Request, mockRes as Response, mockNext);
+
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          data: expect.objectContaining({
+            stack: expect.stringContaining('Error: Dev error'),
+          }),
+        }),
+      }),
+    );
+
+    process.env.NODE_ENV = origEnv;
+  });
+
+  it('handles error on non-MCP path without request ID in headers', () => {
+    const reqWithoutId = {
+      path: '/api/other',
+      headers: {},
+      body: {},
+    };
+
+    const error = new Error('Server error') as Error & { category?: string; statusCode?: number };
+    error.category = 'internal';
+
+    const middleware = error_handlerMiddleware();
+    middleware(error, reqWithoutId as unknown as Request, mockRes as Response, mockNext);
+
+    expect(mockRes.json).toHaveBeenCalledWith(
+      expect.objectContaining({
+        error: expect.objectContaining({
+          message: 'Server error',
+          requestId: 'unknown',
+        }),
+      }),
+    );
+  });
 });

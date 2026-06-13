@@ -22,6 +22,11 @@
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
+    },
+    "./fastify": {
+      "types": "./dist/fastify.d.ts",
+      "import": "./dist/fastify.js",
+      "require": "./dist/fastify.cjs"
     }
   },
   "files": [
@@ -39,12 +44,22 @@
   "dependencies": {
     "@reaatech/mcp-gateway-core": "workspace:*"
   },
+  "peerDependencies": {
+    "fastify": "^5"
+  },
+  "peerDependenciesMeta": {
+    "fastify": {
+      "optional": true
+    }
+  },
   "devDependencies": {
     "@types/node": "^25.6.2",
     "tsup": "^8.4.0",
     "typescript": "^5.8.3",
     "vitest": "^3.1.1",
     "@types/express": "^5.0.0",
-    "@types/express-serve-static-core": "^5.0.0"
+    "@types/express-serve-static-core": "^5.0.0",
+    "fastify": "^5.2.1",
+    "fastify-plugin": "^5.0.1"
   }
 }

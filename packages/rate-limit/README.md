@@ -161,6 +161,36 @@ async function handleRequest(req: Request) {
 }
 ```
 
+## Fastify
+
+The rate-limit check is framework-agnostic (`checkRateLimit(ctx, limiter)`); the
+Express middleware and the Fastify plugin are thin adapters over it.
+
+```typescript
+import Fastify from "fastify";
+import { fastifyAuth } from "@reaatech/mcp-gateway-auth/fastify";
+import { createRateLimiter } from "@reaatech/mcp-gateway-rate-limit";
+import { fastifyRateLimit } from "@reaatech/mcp-gateway-rate-limit/fastify";
+
+const app = Fastify();
+const limiter = createRateLimiter({
+  storeType: "redis",
+  redisClient,
+  defaultConfig: { requestsPerMinute: 100, requestsPerDay: 50_000 },
+});
+
+await app.register(fastifyAuth);                 // resolves request.tenantId
+await app.register(fastifyRateLimit, { limiter }); // keys the bucket on it
+```
+
+On allow it sets the `X-RateLimit-*` headers; over the limit it replies `429`
+with `Retry-After` and a JSON-RPC `-32000` body. The tenant comes from the auth
+plugin's decoration (`request.tenantId`), never from a header. `fastify` is an
+optional peer dependency.
+
+**Registration order:** `auth → rate-limit → allowlist → audit → cache` —
+register `fastifyRateLimit` after `fastifyAuth`.
+
 ## Related Packages
 
 - [@reaatech/mcp-gateway-core](https://www.npmjs.com/package/@reaatech/mcp-gateway-core) — Config loading and constants

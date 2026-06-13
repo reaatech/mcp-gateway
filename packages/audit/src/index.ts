@@ -2,6 +2,10 @@
  * mcp-gateway — Audit Trail Barrel Exports
  */
 
+// Express middleware
+export { auditMiddleware } from './audit.middleware.js';
+// Framework-agnostic core
+export { type RecordAuditOptions, recordAudit } from './audit-core.js';
 export type { AuditLogger } from './audit-logger.js';
 export {
   CompositeAuditLogger,
@@ -9,6 +13,7 @@ export {
   computeEventHash,
   createAuditEvent,
   FileAuditLogger,
+  SilentAuditLogger,
   TamperEvidentLogger,
   verifyAuditChain,
 } from './audit-logger.js';

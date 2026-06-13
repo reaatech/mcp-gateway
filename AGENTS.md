@@ -58,18 +58,32 @@ mcp-gateway/
 ### Package Dependency Graph
 
 ```
-core                     (zod, js-yaml, yaml, pino)
- ├── auth                (jose, jsonwebtoken)
- ├── rate-limit          (redis)
- ├── cache               (redis)
- ├── allowlist           ()
+core                     (js-yaml, yaml, pino; peer: zod ^3.23 || ^4)
+ ├── auth                (jose, jsonwebtoken;  peer: fastify ^5 *)
+ ├── rate-limit          (redis;              peer: fastify ^5 *)
+ ├── cache               (redis;              peer: fastify ^5 *)
+ ├── allowlist           (                    peer: fastify ^5 *)
  ├── validation          (ajv)
  ├── fanout              ()
- ├── audit               ()
+ ├── audit               (                    peer: fastify ^5 *)
  ├── observability       (@opentelemetry/*)
  └── gateway             (express, @modelcontextprotocol/sdk)
       └── depends on ALL above
+
+* fastify is an OPTIONAL peer — only needed when importing the `./fastify`
+  subpath. The Express middleware on the main entry never imports it.
 ```
+
+### Framework-agnostic adapters
+
+The auth, rate-limit, allowlist, audit, and cache packages each split into a
+framework-neutral **core** (operates on `GatewayRequestContext` from `core`,
+returns a `GatewayDecision`) plus thin adapters: the existing **Express**
+middleware on the main entry, and a **Fastify** plugin under the `./fastify`
+subpath. When adding logic, put it in the core function (`evaluateAuth`,
+`checkRateLimit`, `checkAllowlist`, `recordAudit`, `cacheLookup`/`cacheStore`)
+and keep both adapters thin. Recommended Fastify registration order mirrors the
+Express pipeline: `auth → rate-limit → allowlist → audit → cache`.
 
 ---
 

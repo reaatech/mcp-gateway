@@ -2,7 +2,10 @@
  * mcp-gateway — Tool Allowlist Barrel Exports
  */
 
+// Express middleware
 export { allowlistMiddleware } from './allowlist.middleware.js';
+// Framework-agnostic core
+export { checkAllowlist } from './allowlist-core.js';
 export {
   checkToolAccess,
   matchesPattern,

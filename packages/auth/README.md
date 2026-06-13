@@ -152,6 +152,48 @@ app.get("/public", (req, res) => {
 });
 ```
 
+## Fastify
+
+The authentication logic is framework-agnostic. The Express middleware above and
+the Fastify plugin below are thin adapters over the same core (`evaluateAuth`),
+so the resolved tenant flows identically through either stack.
+
+```typescript
+import Fastify from "fastify";
+import { fastifyAuth } from "@reaatech/mcp-gateway-auth/fastify";
+
+const app = Fastify();
+
+// Decorates request.authContext / request.tenantId on success; denies with 401.
+await app.register(fastifyAuth, {
+  onFailure: (error, request) => {
+    request.log.warn(`Auth failed: ${error.code}`);
+  },
+});
+
+app.post("/mcp", async (request) => {
+  // request.authContext is typed via module augmentation
+  return { tenant: request.tenantId };
+});
+```
+
+`fastify` is an **optional peer dependency** — install it only if you use the
+Fastify adapter. The Express entry (`@reaatech/mcp-gateway-auth`) never imports it.
+
+### Recommended registration order
+
+Register the gateway plugins in the same order the Express pipeline runs, so
+every concern keys on the tenant resolved by auth:
+
+```
+auth → rate-limit → allowlist → audit → cache
+```
+
+`fastifyAuth` must be registered first — it decorates `request.tenantId` /
+`request.authContext`, which the later plugins read (never a spoofable header).
+
+For `optional` auth (attach context if present, never deny), pass `{ optional: true }`.
+
 ## Related Packages
 
 - [@reaatech/mcp-gateway-core](https://www.npmjs.com/package/@reaatech/mcp-gateway-core) — Config loading and type definitions

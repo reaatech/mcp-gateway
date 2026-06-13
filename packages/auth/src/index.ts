@@ -5,9 +5,8 @@
 export type { ApiKeyValidationResult } from './api-key-validator.js';
 // API Key
 export { findTenantForApiKey, hashApiKey, validateApiKey } from './api-key-validator.js';
-// Middleware
+// Express middleware
 export {
-  AuthenticationError,
   authMiddleware,
   getAuth,
   optionalAuthMiddleware,
@@ -24,6 +23,14 @@ export {
   hasAnyScope,
   hasScope,
 } from './auth-context.js';
+// Framework-agnostic core
+export type { AuthDecision } from './auth-core.js';
+export {
+  AuthenticationError,
+  authenticateRequest,
+  evaluateAuth,
+  evaluateOptionalAuth,
+} from './auth-core.js';
 export type { JwtValidationResult } from './jwt-validator.js';
 // JWT
 export { decodeJwtUnsafe, isJwtExpired, validateJwt } from './jwt-validator.js';

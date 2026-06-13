@@ -4,11 +4,14 @@
 
 export { createMemoryStore, MemoryRateLimitStore } from './memory-store.js';
 export { QuotaManager } from './quota-manager.js';
+// Express middleware
 export {
   addRateLimitHeaders,
   createRateLimitMiddleware,
   rateLimitErrorResponse,
 } from './rate-limit.middleware.js';
+// Framework-agnostic core
+export { checkRateLimit, rateLimitDenyBody, rateLimitHeaders } from './rate-limit-core.js';
 export { createRateLimiter, RateLimiter } from './rate-limiter.js';
 export { createRedisStore, RedisRateLimitStore } from './redis-store.js';
 export type { TokenBucketConfig, TokenBucketState } from './token-bucket.js';

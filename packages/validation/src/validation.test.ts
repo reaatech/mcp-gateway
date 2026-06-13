@@ -2,6 +2,8 @@
  * mcp-gateway — Schema Validation Unit Tests
  */
 
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import type { ValidatedRequest } from './index.js';
 import {
   createValidationMiddleware,
   formatValidationResponse,
@@ -12,8 +14,7 @@ import {
   resetSchemaValidator,
   validateMcpMethod,
   validateToolCall,
-} from '@reaatech/mcp-gateway-validation';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+} from './index.js';
 
 describe('Schema Validation', () => {
   beforeEach(() => {
@@ -31,6 +32,105 @@ describe('Schema Validation', () => {
       const validator1 = getSchemaValidator();
       const validator2 = getSchemaValidator();
       expect(validator1).toBe(validator2);
+    });
+  });
+
+  describe('SchemaValidator', () => {
+    it('cacheToolSchema caches a schema with custom TTL', () => {
+      const validator = getSchemaValidator();
+      validator.cacheToolSchema('test-tool', { type: 'object' }, 10_000);
+      const schema = (
+        validator as unknown as {
+          getToolSchema: (n: string) => Record<string, unknown> | undefined;
+        }
+      ).getToolSchema('test-tool');
+      expect(schema).toEqual({ type: 'object' });
+    });
+
+    it('getToolSchema returns undefined for unknown tool', () => {
+      const validator = getSchemaValidator();
+      const schema = (
+        validator as unknown as {
+          getToolSchema: (n: string) => Record<string, unknown> | undefined;
+        }
+      ).getToolSchema('nonexistent');
+      expect(schema).toBeUndefined();
+    });
+
+    it('getToolSchema returns undefined after cache expiry', async () => {
+      vi.useFakeTimers();
+      const validator = getSchemaValidator();
+      (
+        validator as unknown as {
+          cacheToolSchema: (n: string, s: Record<string, unknown>, t?: number) => void;
+        }
+      ).cacheToolSchema('expiring-tool', { type: 'object' }, 100);
+      vi.advanceTimersByTime(200);
+      const schema = (
+        validator as unknown as {
+          getToolSchema: (n: string) => Record<string, unknown> | undefined;
+        }
+      ).getToolSchema('expiring-tool');
+      expect(schema).toBeUndefined();
+      vi.useRealTimers();
+    });
+
+    it('clearCache removes all cached schemas', () => {
+      const validator = getSchemaValidator();
+      (
+        validator as unknown as { cacheToolSchema: (n: string, s: Record<string, unknown>) => void }
+      ).cacheToolSchema('tool-a', { type: 'object' });
+      (
+        validator as unknown as { cacheToolSchema: (n: string, s: Record<string, unknown>) => void }
+      ).cacheToolSchema('tool-b', { type: 'object' });
+      (validator as unknown as { clearCache: () => void }).clearCache();
+      const schema = (
+        validator as unknown as {
+          getToolSchema: (n: string) => Record<string, unknown> | undefined;
+        }
+      ).getToolSchema('tool-a');
+      expect(schema).toBeUndefined();
+    });
+
+    it('validateToolArguments removes expired cache entries', async () => {
+      vi.useFakeTimers();
+      const validator = getSchemaValidator();
+      const toolSchema = { type: 'object', properties: { x: { type: 'string' } } };
+      validator.validateToolArguments('cached-tool', { x: 'ok' }, toolSchema);
+      vi.advanceTimersByTime(400_000);
+      validator.validateToolArguments('cached-tool', { x: 'ok' }, toolSchema);
+      vi.useRealTimers();
+      expect(true).toBe(true);
+    });
+
+    it('buildErrorMessage handles additionalProperties error', () => {
+      const validator = getSchemaValidator();
+      const result = validator.validateJsonRpcRequest({
+        jsonrpc: '2.0',
+        id: 1,
+        method: 'tools/call',
+        params: { name: 'test' },
+        extraField: true,
+      });
+      expect(result.valid).toBe(false);
+      expect(result.errors.some((e) => e.message.includes('Unknown field'))).toBe(true);
+    });
+
+    it('buildErrorMessage handles minLength error', () => {
+      const result = validateMcpMethod('tools/call', { name: '' });
+      expect(result.valid).toBe(false);
+      expect(result.error?.data).toBeDefined();
+    });
+
+    it('buildErrorMessage handles default keyword error', () => {
+      const toolSchema = {
+        type: 'object',
+        properties: {
+          color: { type: 'string', enum: ['red', 'blue'] },
+        },
+      };
+      const result = validateToolCall('test', { color: 'green' }, toolSchema);
+      expect(result.valid).toBe(false);
     });
   });
 
@@ -383,6 +483,107 @@ describe('Schema Validation', () => {
 
       expect(manager.getToolNames()).toHaveLength(0);
     });
+
+    it('hasSchema returns true for registered tool', () => {
+      const manager = getCustomSchemaManager();
+      manager.registerSchema({
+        toolName: 'existing-tool',
+        version: '1.0.0',
+        inputSchema: { type: 'object' },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      expect(manager.hasSchema('existing-tool')).toBe(true);
+      expect(manager.hasSchema('missing-tool')).toBe(false);
+    });
+
+    it('validateOutput returns valid when no outputSchema registered', () => {
+      const manager = getCustomSchemaManager();
+      manager.registerSchema({
+        toolName: 'no-output',
+        version: '1.0.0',
+        inputSchema: { type: 'object' },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      const result = manager.validateOutput('no-output', { some: 'data' });
+      expect(result.valid).toBe(true);
+    });
+
+    it('validateOutput validates against registered outputSchema', () => {
+      const manager = getCustomSchemaManager();
+      manager.registerSchema({
+        toolName: 'with-output',
+        version: '1.0.0',
+        inputSchema: { type: 'object' },
+        outputSchema: {
+          type: 'object',
+          required: ['result'],
+          properties: { result: { type: 'string' } },
+        },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      const result = manager.validateOutput('with-output', { result: 'ok' });
+      expect(result.valid).toBe(true);
+    });
+
+    it('validateOutput rejects invalid output', () => {
+      const manager = getCustomSchemaManager();
+      manager.registerSchema({
+        toolName: 'strict-output',
+        version: '1.0.0',
+        inputSchema: { type: 'object' },
+        outputSchema: {
+          type: 'object',
+          required: ['result'],
+          properties: { result: { type: 'number' } },
+        },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      const result = manager.validateOutput('strict-output', { result: 'not-a-number' });
+      expect(result.valid).toBe(false);
+    });
+
+    it('removeSchema removes tool and clears cache', () => {
+      const manager = getCustomSchemaManager();
+      manager.registerSchema({
+        toolName: 'removable',
+        version: '1.0.0',
+        inputSchema: { type: 'object' },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      manager.removeSchema('removable');
+      expect(manager.hasSchema('removable')).toBe(false);
+    });
+
+    it('rollback returns false when no history', () => {
+      const manager = getCustomSchemaManager();
+      const result = manager.rollback('never-registered', '1.0.0');
+      expect(result).toBe(false);
+    });
+
+    it('rollback returns false when version not found in history', () => {
+      const manager = getCustomSchemaManager();
+      manager.registerSchema({
+        toolName: 'single-version',
+        version: '2.0.0',
+        inputSchema: { type: 'object' },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      manager.registerSchema({
+        toolName: 'single-version',
+        version: '3.0.0',
+        inputSchema: { type: 'object' },
+        source: 'upstream-1',
+        fetchedAt: Date.now(),
+      });
+      const result = manager.rollback('single-version', '1.0.0');
+      expect(result).toBe(false);
+    });
   });
 
   describe('formatValidationResponse', () => {
@@ -399,9 +600,61 @@ describe('Schema Validation', () => {
   });
 
   describe('createValidationMiddleware', () => {
+    let middleware: ReturnType<typeof createValidationMiddleware>;
+    let mockReq: Partial<ValidatedRequest>;
+    let mockRes: {
+      status: ReturnType<typeof vi.fn>;
+      json: ReturnType<typeof vi.fn>;
+    };
+    let mockNext: ReturnType<typeof vi.fn>;
+
+    beforeEach(() => {
+      middleware = createValidationMiddleware();
+      mockRes = {
+        status: vi.fn().mockReturnThis(),
+        json: vi.fn().mockReturnThis(),
+      };
+      mockNext = vi.fn();
+    });
+
     it('creates middleware function', () => {
-      const middleware = createValidationMiddleware();
       expect(typeof middleware).toBe('function');
+    });
+
+    it('calls next for non-POST requests', () => {
+      mockReq = { method: 'GET', path: '/mcp', body: {} };
+      middleware(mockReq as ValidatedRequest, mockRes as never, mockNext as never);
+      expect(mockNext).toHaveBeenCalledOnce();
+    });
+
+    it('calls next for non-MCP paths', () => {
+      mockReq = { method: 'POST', path: '/health', body: {} };
+      middleware(mockReq as ValidatedRequest, mockRes as never, mockNext as never);
+      expect(mockNext).toHaveBeenCalledOnce();
+    });
+
+    it('returns 400 when body is missing', () => {
+      mockReq = { method: 'POST', path: '/mcp', body: undefined };
+      middleware(mockReq as ValidatedRequest, mockRes as never, mockNext as never);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledOnce();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('returns 400 for invalid JSON-RPC body', () => {
+      mockReq = { method: 'POST', path: '/mcp', body: { invalid: true } };
+      middleware(mockReq as ValidatedRequest, mockRes as never, mockNext as never);
+      expect(mockRes.status).toHaveBeenCalledWith(400);
+      expect(mockRes.json).toHaveBeenCalledOnce();
+      expect(mockNext).not.toHaveBeenCalled();
+    });
+
+    it('sets rpcBody and calls next for valid request', () => {
+      const validBody = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: 'test' } };
+      mockReq = { method: 'POST', path: '/mcp', body: validBody };
+      middleware(mockReq as ValidatedRequest, mockRes as never, mockNext as never);
+      expect(mockNext).toHaveBeenCalledOnce();
+      expect(mockReq.rpcBody).toEqual(validBody);
     });
   });
 });

@@ -14,7 +14,10 @@ describe('loggingMiddleware', () => {
   let mockNext: NextFunction;
   let mockContext: PipelineContext;
 
+  let finishHandler: (() => void) | undefined;
+
   beforeEach(() => {
+    finishHandler = undefined;
     mockLogger = vi.fn();
     mockReq = {
       method: 'POST',
@@ -27,7 +30,12 @@ describe('loggingMiddleware', () => {
       end: vi.fn().mockImplementation(function (this: Response) {
         return this;
       }),
-      on: vi.fn(),
+      on: vi.fn((event: string, handler: () => void) => {
+        if (event === 'finish') {
+          finishHandler = handler;
+        }
+        return mockRes;
+      }) as Partial<Response>['on'],
     };
     mockNext = vi.fn();
     mockContext = {
@@ -61,6 +69,64 @@ describe('loggingMiddleware', () => {
     middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
 
     expect(mockNext).toHaveBeenCalled();
+  });
+
+  it('logs entry with info level on finish for 2xx', () => {
+    const middleware = loggingMiddleware({ logger: mockLogger });
+
+    middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
+
+    finishHandler?.();
+
+    expect(mockLogger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        level: 'info',
+        requestId: 'test-req-id',
+        tenantId: 'test-tenant',
+        method: 'POST',
+        path: '/mcp',
+        statusCode: 200,
+        userAgent: 'test-agent',
+        ip: '127.0.0.1',
+      }),
+    );
+  });
+
+  it('logs entry with warn level on finish for 4xx', () => {
+    mockRes.statusCode = 403;
+    const middleware = loggingMiddleware({ logger: mockLogger });
+
+    middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
+    finishHandler?.();
+
+    expect(mockLogger).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'warn', statusCode: 403 }),
+    );
+  });
+
+  it('logs entry with error level on finish for 5xx', () => {
+    mockRes.statusCode = 500;
+    const middleware = loggingMiddleware({ logger: mockLogger });
+
+    middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
+    finishHandler?.();
+
+    expect(mockLogger).toHaveBeenCalledWith(
+      expect.objectContaining({ level: 'error', statusCode: 500 }),
+    );
+  });
+
+  it('includes durationMs in log entry', () => {
+    const middleware = loggingMiddleware({ logger: mockLogger });
+
+    middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
+    finishHandler?.();
+
+    expect(mockLogger).toHaveBeenCalledWith(
+      expect.objectContaining({
+        durationMs: expect.any(Number),
+      }),
+    );
   });
 });
 

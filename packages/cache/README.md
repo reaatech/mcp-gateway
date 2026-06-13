@@ -160,6 +160,40 @@ console.log(entry?.value.result); // "cached data"
 console.log(cache.getStats());   // { hits: 1, misses: 0, size: 1, evictions: 0 }
 ```
 
+## Fastify
+
+The cache orchestration is framework-agnostic (`cacheLookup` / `cacheStore` over a
+`CacheController`). The Express middleware is memory-backed via `CacheManager`; the
+Fastify plugin wires the existing `RedisCache` so the Fastify path is **Redis-backed**.
+
+```typescript
+import Fastify from "fastify";
+import { fastifyAuth } from "@reaatech/mcp-gateway-auth/fastify";
+import { RedisCache } from "@reaatech/mcp-gateway-cache";
+import { fastifyCache } from "@reaatech/mcp-gateway-cache/fastify";
+
+const app = Fastify();
+const redis = new RedisCache(redisClient);
+
+await app.register(fastifyAuth);
+await app.register(fastifyCache, {
+  redis,
+  config: { enabled: true, defaultTtlSeconds: 300 },
+});
+
+app.post("/mcp", async () => callUpstream());
+```
+
+On a cache **HIT** the plugin calls `reply.hijack()` and writes the stored
+body/headers (`X-Cache: HIT`, `X-Cache-TTL`, `X-Cache-Key`) directly to the raw
+socket, so Fastify does not re-serialize the payload. On a **MISS** an `onSend`
+hook captures the response and stores successful (non-`error`) results. Pass
+`{ manager }` instead of `{ redis }` for an in-memory backend, or `{ controller }`
+for a custom one. `fastify` is an optional peer dependency.
+
+**Registration order:** `auth → rate-limit → allowlist → audit → cache` —
+register `fastifyCache` last so it caches only requests that passed every gate.
+
 ## Related Packages
 
 - [@reaatech/mcp-gateway-core](https://www.npmjs.com/package/@reaatech/mcp-gateway-core) — Config types

@@ -189,6 +189,32 @@ const results = query({
 console.log(`Found ${results.total} auth failures for acme-corp`);
 ```
 
+## Fastify
+
+Recording is framework-agnostic (`recordAudit(ctx, decision, options)`). Both the
+Express middleware (`auditMiddleware`) and the Fastify plugin write through the
+same core, and both default to a **silent sink** — nothing is written to stdout
+(reserved for the MCP JSON-RPC stream) unless you supply a `logger`.
+
+```typescript
+import Fastify from "fastify";
+import { fastifyAuth } from "@reaatech/mcp-gateway-auth/fastify";
+import { ConsoleAuditLogger } from "@reaatech/mcp-gateway-audit";
+import { fastifyAudit } from "@reaatech/mcp-gateway-audit/fastify";
+
+const app = Fastify();
+
+await app.register(fastifyAuth);
+await app.register(fastifyAudit, { logger: new ConsoleAuditLogger() });
+```
+
+Use `SilentAuditLogger` (the default) on hosts that forbid stdout writes, or any
+`AuditLogger` (`FileAuditLogger`, `CompositeAuditLogger`, custom). `fastify` is an
+optional peer dependency.
+
+**Registration order:** `auth → rate-limit → allowlist → audit → cache` —
+register `fastifyAudit` after `fastifyAllowlist` and before `fastifyCache`.
+
 ## Related Packages
 
 - [@reaatech/mcp-gateway-core](https://www.npmjs.com/package/@reaatech/mcp-gateway-core) — Audit event type definitions
