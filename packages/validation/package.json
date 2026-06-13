@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/mcp-gateway-validation",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "JSON Schema validation for MCP protocol messages",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

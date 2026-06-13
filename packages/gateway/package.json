@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/mcp-gateway-gateway",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "MCP Gateway server — Express-based gateway with authentication, rate limiting, caching, and fan-out",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",
