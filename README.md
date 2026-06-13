@@ -18,6 +18,7 @@ This monorepo provides a composable gateway framework with 10 independently vers
 - **Response caching** — Redis or in-memory LRU cache with per-tool TTL strategies and `Cache-Control` bypass
 - **Audit trail** — Structured JSONL audit logging with tamper-evident chaining and query API
 - **Observability** — OpenTelemetry auto-initialization, pre-built metrics, distributed tracing, and health checks
+- **Framework-agnostic** — Auth, rate-limit, allowlist, audit, and cache each expose a framework-neutral core plus thin **Express and Fastify** adapters, so the full pipeline runs on either stack with the same tenant context
 
 ## Installation
 
@@ -86,6 +87,40 @@ import { createApp } from "@reaatech/mcp-gateway-gateway";
 const gateway = createApp();
 gateway.app.listen(8080, () => console.log("Gateway listening on :8080"));
 ```
+
+## Framework support (Express + Fastify)
+
+The auth, rate-limit, allowlist, audit, and cache packages are framework-agnostic.
+Each ships the existing **Express** middleware on its main entry plus a **Fastify**
+plugin under the `./fastify` subpath. `fastify` is an optional peer dependency, so
+Express-only consumers never pull it in.
+
+```typescript
+import Fastify from "fastify";
+import { fastifyAuth } from "@reaatech/mcp-gateway-auth/fastify";
+import { fastifyRateLimit } from "@reaatech/mcp-gateway-rate-limit/fastify";
+import { fastifyAllowlist } from "@reaatech/mcp-gateway-allowlist/fastify";
+import { fastifyAudit } from "@reaatech/mcp-gateway-audit/fastify";
+import { fastifyCache } from "@reaatech/mcp-gateway-cache/fastify";
+
+const app = Fastify();
+
+// Register in the same order as the Express pipeline so the tenant resolved by
+// auth flows through every later stage:
+await app.register(fastifyAuth);                    // decorates request.tenantId
+await app.register(fastifyRateLimit, { limiter });
+await app.register(fastifyAllowlist);
+await app.register(fastifyAudit, { logger });
+await app.register(fastifyCache, { redis, config }); // Redis-backed
+
+app.post("/mcp", async (request) => handleMcp(request));
+```
+
+**Recommended order:** `auth → rate-limit → allowlist → audit → cache`. Downstream
+plugins read the tenant from the auth decoration (`request.tenantId` /
+`request.authContext`), never from a spoofable header — exactly as the Express
+path reads `req.authContext`. See each package's README and
+[`ARCHITECTURE.md`](./ARCHITECTURE.md) for details.
 
 ## Packages
 

@@ -3,7 +3,9 @@
  * Express middleware for rate limiting
  */
 
+import { buildRequestContext } from '@reaatech/mcp-gateway-core';
 import type { NextFunction, Request, Response } from 'express';
+import { checkRateLimit } from './rate-limit-core.js';
 import type { RateLimiter } from './rate-limiter.js';
 import type { RateLimitResult } from './types.js';
 
@@ -46,23 +48,28 @@ export function addRateLimitHeaders(res: Response, result: RateLimitResult): voi
  */
 export function createRateLimitMiddleware(limiter: RateLimiter) {
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
-    const tenantId = (req as unknown as { authContext?: { tenantId: string } }).authContext
-      ?.tenantId;
+    const authContext = (req as unknown as { authContext?: { tenantId: string } }).authContext;
+    const ctx = buildRequestContext({
+      httpMethod: req.method,
+      path: req.path,
+      headers: req.headers,
+      body: req.body,
+      tenantId: authContext?.tenantId,
+    });
 
-    if (!tenantId) {
-      // No tenant identified, skip rate limiting
-      next();
+    const decision = await checkRateLimit(ctx, limiter);
+
+    if (decision.headers) {
+      for (const [name, value] of Object.entries(decision.headers)) {
+        res.set(name, value);
+      }
+    }
+
+    if (decision.action === 'deny') {
+      res.status(decision.status ?? 429).json(decision.body);
       return;
     }
 
-    const result = await limiter.checkLimit(tenantId);
-
-    if (!result.allowed) {
-      rateLimitErrorResponse(res, result);
-      return;
-    }
-
-    addRateLimitHeaders(res, result);
     next();
   };
 }

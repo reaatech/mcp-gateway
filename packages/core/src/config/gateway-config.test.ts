@@ -106,8 +106,56 @@ describe('gateway-config', () => {
       };
 
       setConfigLoaderDependencies({
+        cwd: '/test/cwd',
         fs: {
-          existsSync: (path: string) => path === '/config/gateway.yaml',
+          existsSync: (path: string) => path === '/test/cwd/gateway.yaml',
+          readFileSync: () => 'invalid yaml',
+        },
+        yaml: mockYaml,
+      });
+
+      const config = loadGatewayConfig();
+
+      expect(config.server).toBeDefined();
+      expect(config.server.host).toBe('0.0.0.0');
+    });
+
+    it('falls back to defaults when TLS enabled but cert/key missing', () => {
+      const mockConfig = {
+        server: { host: '0.0.0.0', port: 8080, tls: { enabled: true } },
+        rateLimits: { defaultRequestsPerMinute: 100, defaultRequestsPerDay: 10000 },
+        cache: { enabled: true, defaultTtlSeconds: 300 },
+        audit: { enabled: true, storage: 'file', filePath: '/tmp/audit', retentionDays: 90 },
+        observability: { logLevel: 'info', serviceName: 'test' },
+      };
+      const mockYaml = { load: () => mockConfig };
+
+      setConfigLoaderDependencies({
+        cwd: '/test/cwd',
+        fs: {
+          existsSync: (path: string) => path === '/test/cwd/gateway.yaml',
+          readFileSync: () => 'tls config content',
+        },
+        yaml: mockYaml,
+      });
+
+      const config = loadGatewayConfig();
+
+      expect(config.server).toBeDefined();
+      expect(config.server.host).toBe('0.0.0.0');
+    });
+
+    it('falls back to defaults when caught error is not an Error instance', () => {
+      const mockYaml = {
+        load: () => {
+          throw 'string error';
+        },
+      };
+
+      setConfigLoaderDependencies({
+        cwd: '/test/cwd',
+        fs: {
+          existsSync: (path: string) => path === '/test/cwd/gateway.yaml',
           readFileSync: () => 'invalid yaml',
         },
         yaml: mockYaml,
@@ -172,6 +220,24 @@ describe('gateway-config', () => {
       const config = loadGatewayConfig();
 
       expect(config.server.port).toBe(9999);
+    });
+
+    it('uses default fs when deps.fs not provided', () => {
+      setConfigLoaderDependencies({
+        cwd: '/nonexistent',
+      });
+
+      const config = loadGatewayConfig();
+
+      expect(config.server.host).toBe('0.0.0.0');
+    });
+
+    it('uses empty deps when testDependencies not set', () => {
+      resetGatewayConfig();
+
+      const config = loadGatewayConfig();
+
+      expect(config.server.host).toBe('0.0.0.0');
     });
   });
 });

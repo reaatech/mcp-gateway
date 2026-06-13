@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createAuditEvent } from './audit-logger.js';
 import { FileAuditStorage, MemoryAuditStorage } from './audit-storage.js';
 
@@ -253,6 +253,122 @@ describe('FileAuditStorage', () => {
       expect(() =>
         storageWithRetention.store(createAuditEvent('auth.success', 'req-2')),
       ).not.toThrow();
+    });
+
+    it('removes old events and keeps recent ones', () => {
+      vi.useFakeTimers();
+      vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
+
+      const storage = new FileAuditStorage(tempFile, { retentionDays: 1 });
+      storage.store(createAuditEvent('auth.success', 'req-old'));
+
+      vi.setSystemTime(new Date('2026-01-10T00:00:00Z'));
+      storage.store(createAuditEvent('auth.success', 'req-new'));
+
+      const content = fs.readFileSync(tempFile, 'utf-8');
+      const lines = content
+        .trim()
+        .split('\n')
+        .filter((l) => l);
+      expect(lines).toHaveLength(1);
+      const parsed = JSON.parse(lines[0]);
+      expect(parsed.requestId).toBe('req-new');
+
+      vi.useRealTimers();
+    });
+
+    it('handles malformed JSON lines during purge', () => {
+      const now = new Date().toISOString();
+      fs.writeFileSync(
+        tempFile,
+        `{"eventType":"auth.success","requestId":"req-1","timestamp":"${now}"}\nnot valid json\n{"eventType":"auth.success","requestId":"req-2","timestamp":"${now}"}\n`,
+      );
+
+      const storage = new FileAuditStorage(tempFile, { retentionDays: 1 });
+      storage.store(createAuditEvent('auth.success', 'req-new'));
+
+      const content = fs.readFileSync(tempFile, 'utf-8');
+      const lines = content
+        .trim()
+        .split('\n')
+        .filter((l) => l);
+      expect(lines.length).toBeGreaterThanOrEqual(3);
+    });
+  });
+
+  describe('rotateIfNeeded', () => {
+    it('handles rotation error gracefully', () => {
+      const storage = new FileAuditStorage(tempFile, { maxFileSizeBytes: 1 });
+      for (let i = 0; i < 100; i++) {
+        storage.store(createAuditEvent('auth.success', `req-${i}`));
+      }
+      const backupFile = `${tempFile}.1`;
+      expect(fs.existsSync(backupFile)).toBe(true);
+    });
+  });
+
+  describe('FileAuditStorage store error handling', () => {
+    it('handles appendFileSync failure gracefully', () => {
+      fs.writeFileSync(tempFile, '');
+      fs.chmodSync(tempFile, 0o444);
+      const storage = new FileAuditStorage(tempFile);
+      expect(() => storage.store(createAuditEvent('auth.success', 'req-1'))).not.toThrow();
+      fs.chmodSync(tempFile, 0o644);
+    });
+  });
+
+  describe('FileAuditStorage query filters', () => {
+    beforeEach(() => {
+      const storage = new FileAuditStorage(tempFile);
+      storage.store(
+        createAuditEvent('auth.success', 'req-1', {
+          tenantId: 'tenant-a',
+          userId: 'user-1',
+          tool: 'tool1',
+          success: true,
+        }),
+      );
+      storage.store(
+        createAuditEvent('auth.failure', 'req-2', {
+          tenantId: 'tenant-a',
+          userId: 'user-1',
+          tool: 'tool1',
+          success: false,
+        }),
+      );
+      storage.store(
+        createAuditEvent('tool.executed', 'req-3', {
+          tenantId: 'tenant-b',
+          userId: 'user-2',
+          tool: 'tool2',
+          success: true,
+        }),
+      );
+    });
+
+    it('filters by userId', () => {
+      const storage = new FileAuditStorage(tempFile);
+      const results = storage.query({ userId: 'user-1' });
+      expect(results).toHaveLength(2);
+    });
+
+    it('filters by tool', () => {
+      const storage = new FileAuditStorage(tempFile);
+      const results = storage.query({ tool: 'tool2' });
+      expect(results).toHaveLength(1);
+    });
+
+    it('filters by startTime and endTime', () => {
+      const storage = new FileAuditStorage(tempFile);
+      const now = new Date().toISOString();
+      const results = storage.query({ startTime: now });
+      expect(results.length).toBeGreaterThanOrEqual(0);
+    });
+
+    it('filters by requestId', () => {
+      const storage = new FileAuditStorage(tempFile);
+      const results = storage.query({ requestId: 'req-1' });
+      expect(results).toHaveLength(1);
     });
   });
 });

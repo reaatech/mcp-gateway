@@ -1,2 +1,22 @@
 packages:
   - 'packages/*'
+
+# pnpm 10 reads these from pnpm-workspace.yaml; the legacy "pnpm" field in
+# package.json is ignored by pnpm >= 10.
+onlyBuiltDependencies:
+  - '@biomejs/biome'
+  - esbuild
+
+overrides:
+  fast-uri: 3.1.2
+  hono: 4.12.21
+  ip-address: 10.1.1
+  brace-expansion: 5.0.6
+  protobufjs: 8.2.0
+  qs: 6.15.2
+  vitest: 4.1.0
+  # Security advisories (transitive devDependencies):
+  # @grpc/grpc-js <1.14.4 — malformed request / compressed-message DoS
+  '@grpc/grpc-js': '>=1.14.4'
+  # esbuild <0.28.1 — missing binary integrity verification
+  esbuild: '>=0.28.1'

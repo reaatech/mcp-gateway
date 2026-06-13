@@ -146,6 +146,30 @@ Requests to `POST /mcp` flow through this pipeline (implemented in `packages/gat
 
 **Design Decision:** Middleware order is critical — auth before rate limiting (prevents rate limit bypass), allowlist before cache (prevents unauthorized cache hits).
 
+### Framework-agnostic adapters (Express + Fastify)
+
+Each gateway concern is split into a **framework-agnostic core** (operates on the
+normalized `GatewayRequestContext` from `@reaatech/mcp-gateway-core`, returns a
+`GatewayDecision`) plus thin **Express** and **Fastify** adapters. The Express
+middleware is the default entry (`@reaatech/mcp-gateway-<pkg>`); the Fastify
+plugin ships under the `./fastify` subpath (`@reaatech/mcp-gateway-<pkg>/fastify`),
+with `fastify` declared as an optional peer dependency so Express-only consumers
+never pull it in.
+
+On a Fastify stack, register the plugins in the **same order** as the Express
+pipeline so the tenant resolved by auth flows through every later stage:
+
+```
+auth → rate-limit → allowlist → audit → cache
+```
+
+`fastifyAuth` decorates `request.tenantId` / `request.authContext`; the
+downstream plugins read tenant from that decoration (never a spoofable header),
+exactly as the Express path reads `req.authContext`. A denying plugin sends the
+reply and returns from its `preHandler` hook (short-circuiting the pipeline);
+`fastifyCache` serves hits via `reply.hijack()` so the stored payload is written
+raw without re-serialization, and is Redis-backed through `RedisCache`.
+
 ---
 
 ## Authentication System

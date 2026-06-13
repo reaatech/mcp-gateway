@@ -7,13 +7,13 @@ describe('Health Checks', () => {
   let getLiveness: ObsMod['getLiveness'];
   let getReadiness: ObsMod['getReadiness'];
   let getDeepHealth: ObsMod['getDeepHealth'];
-  type ObsMod = typeof import('@reaatech/mcp-gateway-observability');
+  type ObsMod = typeof import('./index.js');
   let createRedisProbe: ObsMod['createRedisProbe'];
   let createUpstreamProbe: ObsMod['createUpstreamProbe'];
 
   beforeEach(async () => {
     vi.resetModules();
-    const mod = await import('@reaatech/mcp-gateway-observability');
+    const mod = await import('./index.js');
     registerProbe = mod.registerProbe;
     unregisterProbe = mod.unregisterProbe;
     resetProbes = mod.resetProbes;
@@ -73,6 +73,15 @@ describe('Health Checks', () => {
       const status = await getReadiness();
       expect(status.status).toBe('unhealthy');
     });
+
+    it('handles probe throwing non-Error values', async () => {
+      registerProbe('string-throw', async () => {
+        throw 'something went wrong';
+      });
+      const status = await getReadiness();
+      expect(status.status).toBe('unhealthy');
+      expect(status.components['string-throw']?.message).toBe('something went wrong');
+    });
   });
 
   describe('getDeepHealth', () => {
@@ -117,6 +126,15 @@ describe('Health Checks', () => {
       expect(result.message).toContain('ECONNREFUSED');
     });
 
+    it('returns unhealthy with fallback message on string throw', async () => {
+      const probe = createRedisProbe(async () => {
+        throw 'timeout error';
+      });
+      const result = await probe();
+      expect(result.status).toBe('unhealthy');
+      expect(result.message).toContain('Redis unreachable');
+    });
+
     it('returns unhealthy on timeout', async () => {
       const probe = createRedisProbe(() => new Promise((resolve) => setTimeout(resolve, 5000)), 50);
       const result = await probe();
@@ -126,18 +144,55 @@ describe('Health Checks', () => {
   });
 
   describe('createUpstreamProbe', () => {
+    const originalFetch = global.fetch;
+
+    afterEach(() => {
+      global.fetch = originalFetch;
+    });
+
     it('returns healthy for HTTP 200', async () => {
-      const probe = createUpstreamProbe('http://localhost:1', 2000);
-      // This will fail since nothing is on port 1, but we test the probe structure
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+      });
+      const probe = createUpstreamProbe('http://localhost:9999', 2000);
       const result = await probe();
-      expect(['healthy', 'unhealthy']).toContain(result.status);
+      expect(result.status).toBe('healthy');
+      expect(typeof result.latencyMs).toBe('number');
+    });
+
+    it('returns degraded for HTTP non-200', async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: false,
+        status: 503,
+      });
+      const probe = createUpstreamProbe('http://localhost:9999', 2000);
+      const result = await probe();
+      expect(result.status).toBe('degraded');
+      expect(result.message).toContain('503');
+    });
+
+    it('returns unhealthy on network error', async () => {
+      global.fetch = vi.fn().mockRejectedValue(new Error('ECONNREFUSED'));
+      const probe = createUpstreamProbe('http://localhost:9999', 2000);
+      const result = await probe();
+      expect(result.status).toBe('unhealthy');
+      expect(result.message).toContain('ECONNREFUSED');
+    });
+
+    it('returns unhealthy with fallback message on non-Error rejection', async () => {
+      global.fetch = vi.fn().mockRejectedValue('network failure');
+      const probe = createUpstreamProbe('http://localhost:9999', 2000);
+      const result = await probe();
+      expect(result.status).toBe('unhealthy');
+      expect(result.message).toContain('Upstream unreachable');
     });
   });
 });
 
 describe('Logger', () => {
   it('redactToken masks tokens correctly', async () => {
-    const { redactToken } = await import('@reaatech/mcp-gateway-observability');
+    const { redactToken } = await import('./index.js');
     expect(redactToken('')).toBe('');
     expect(redactToken('short')).toBe('***');
     expect(redactToken('a').length).toBeLessThanOrEqual(3);
@@ -148,7 +203,7 @@ describe('Logger', () => {
   });
 
   it('childLogger creates a logger with context', async () => {
-    const { childLogger } = await import('@reaatech/mcp-gateway-observability');
+    const { childLogger } = await import('./index.js');
     const child = childLogger({ requestId: 'test-123', tenantId: 'tenant-1' });
     expect(child).toBeDefined();
     expect(typeof child.info).toBe('function');
@@ -157,12 +212,12 @@ describe('Logger', () => {
 
 describe('Metrics', () => {
   beforeEach(async () => {
-    const { resetMetricsState } = await import('@reaatech/mcp-gateway-observability');
+    const { resetMetricsState } = await import('./index.js');
     resetMetricsState();
   });
 
   it('exports all required metric instruments', async () => {
-    const mod = await import('@reaatech/mcp-gateway-observability');
+    const mod = await import('./index.js');
     expect(mod.requestsTotal).toBeDefined();
     expect(mod.requestDurationMs).toBeDefined();
     expect(mod.authAttempts).toBeDefined();
@@ -182,9 +237,7 @@ describe('Metrics', () => {
   });
 
   it('updateCacheSize updates the internal state', async () => {
-    const { updateCacheSize, resetMetricsState } = await import(
-      '@reaatech/mcp-gateway-observability'
-    );
+    const { updateCacheSize, resetMetricsState } = await import('./index.js');
     resetMetricsState();
     updateCacheSize(1024);
     // No error means success (gauge callback reads internal var)
@@ -192,9 +245,7 @@ describe('Metrics', () => {
   });
 
   it('updateRateLimitRemaining updates per-tenant state', async () => {
-    const { updateRateLimitRemaining, resetMetricsState } = await import(
-      '@reaatech/mcp-gateway-observability'
-    );
+    const { updateRateLimitRemaining, resetMetricsState } = await import('./index.js');
     resetMetricsState();
     updateRateLimitRemaining('tenant-1', 50);
     updateRateLimitRemaining('tenant-2', 25);
@@ -202,9 +253,7 @@ describe('Metrics', () => {
   });
 
   it('resetMetricsState clears gauge state', async () => {
-    const { updateCacheSize, resetMetricsState } = await import(
-      '@reaatech/mcp-gateway-observability'
-    );
+    const { updateCacheSize, resetMetricsState } = await import('./index.js');
     updateCacheSize(500);
     resetMetricsState();
     expect(true).toBe(true);
@@ -213,7 +262,7 @@ describe('Metrics', () => {
 
 describe('Tracing', () => {
   it('exports SPAN_NAMES with all pipeline stages', async () => {
-    const { SPAN_NAMES } = await import('@reaatech/mcp-gateway-observability');
+    const { SPAN_NAMES } = await import('./index.js');
     expect(SPAN_NAMES.auth).toBe('gateway.auth');
     expect(SPAN_NAMES.rateLimit).toBe('gateway.rate_limit');
     expect(SPAN_NAMES.cache).toBe('gateway.cache');
@@ -225,7 +274,7 @@ describe('Tracing', () => {
   });
 
   it('withSpan executes function and returns result', async () => {
-    const { withSpan } = await import('@reaatech/mcp-gateway-observability');
+    const { withSpan } = await import('./index.js');
     const result = await withSpan('test-span', async () => {
       return 42;
     });
@@ -233,7 +282,7 @@ describe('Tracing', () => {
   });
 
   it('withSpan propagates errors', async () => {
-    const { withSpan } = await import('@reaatech/mcp-gateway-observability');
+    const { withSpan } = await import('./index.js');
     await expect(
       withSpan('test-span', async () => {
         throw new Error('test error');
@@ -241,18 +290,112 @@ describe('Tracing', () => {
     ).rejects.toThrow('test error');
   });
 
+  it('withSpan propagates non-Error throws', async () => {
+    const { withSpan } = await import('./index.js');
+    await expect(
+      withSpan('test-span', async () => {
+        throw 'string error';
+      }),
+    ).rejects.toBe('string error');
+  });
+
   it('addSpanAttributes does not throw when no active span', async () => {
-    const { addSpanAttributes } = await import('@reaatech/mcp-gateway-observability');
+    const { addSpanAttributes } = await import('./index.js');
     expect(() => addSpanAttributes({ key: 'value' })).not.toThrow();
   });
 
   it('recordSpanEvent does not throw when no active span', async () => {
-    const { recordSpanEvent } = await import('@reaatech/mcp-gateway-observability');
+    const { recordSpanEvent } = await import('./index.js');
     expect(() => recordSpanEvent('test-event')).not.toThrow();
   });
 
   it('currentSpan returns undefined when no active span', async () => {
-    const { currentSpan } = await import('@reaatech/mcp-gateway-observability');
+    const { currentSpan } = await import('./index.js');
     expect(currentSpan()).toBeUndefined();
+  });
+
+  it('addSpanAttributes sets attributes on active span', async () => {
+    const span = { setAttributes: vi.fn() };
+    const spanApi = await import('@opentelemetry/api');
+    vi.spyOn(spanApi.trace, 'getActiveSpan').mockReturnValue(span as never);
+    const { addSpanAttributes } = await import('./index.js');
+    addSpanAttributes({ key: 'value' });
+    expect(span.setAttributes).toHaveBeenCalledWith({ key: 'value' });
+    vi.restoreAllMocks();
+  });
+
+  it('recordSpanEvent records event on active span', async () => {
+    const span = { addEvent: vi.fn() };
+    const spanApi = await import('@opentelemetry/api');
+    vi.spyOn(spanApi.trace, 'getActiveSpan').mockReturnValue(span as never);
+    const { recordSpanEvent } = await import('./index.js');
+    recordSpanEvent('test-event', { attr: 'val' });
+    expect(span.addEvent).toHaveBeenCalledWith('test-event', { attr: 'val' });
+    vi.restoreAllMocks();
+  });
+});
+
+describe('OpenTelemetry initialization', () => {
+  let originalNodeEnv: string | undefined;
+  let originalOtelEndpoint: string | undefined;
+
+  beforeEach(() => {
+    originalNodeEnv = process.env.NODE_ENV;
+    originalOtelEndpoint = process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+  });
+
+  afterEach(() => {
+    if (originalNodeEnv !== undefined) {
+      process.env.NODE_ENV = originalNodeEnv;
+    } else {
+      delete process.env.NODE_ENV;
+    }
+    if (originalOtelEndpoint !== undefined) {
+      process.env.OTEL_EXPORTER_OTLP_ENDPOINT = originalOtelEndpoint;
+    } else {
+      delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    }
+  });
+
+  it('skips OTel init when endpoint is not configured (non-production)', async () => {
+    vi.resetModules();
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    process.env.NODE_ENV = 'development';
+    const core = await import('@reaatech/mcp-gateway-core');
+    const warnSpy = vi.spyOn(core.logger, 'warn');
+    await import('./index.js');
+    expect(warnSpy).not.toHaveBeenCalled();
+  });
+
+  it('warns in production when endpoint is not configured', async () => {
+    vi.resetModules();
+    delete process.env.OTEL_EXPORTER_OTLP_ENDPOINT;
+    process.env.NODE_ENV = 'production';
+    const core = await import('@reaatech/mcp-gateway-core');
+    const warnSpy = vi.spyOn(core.logger, 'warn');
+    await import('./index.js');
+    expect(warnSpy).toHaveBeenCalled();
+  });
+
+  it('attempts OTel setup when endpoint is configured', async () => {
+    vi.resetModules();
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = 'http://otel:4318';
+    process.env.NODE_ENV = 'production';
+    const mod = await import('./index.js');
+    expect(mod).toBeDefined();
+  });
+
+  it('calls shutdownOTel after OTel setup', async () => {
+    vi.resetModules();
+    process.env.OTEL_EXPORTER_OTLP_ENDPOINT = 'http://otel:4318';
+    process.env.NODE_ENV = 'production';
+    await import('./index.js');
+    await vi.waitFor(
+      async () => {
+        const mod = await import('./index.js');
+        await expect(mod.shutdownOTel()).resolves.toBeUndefined();
+      },
+      { timeout: 5000 },
+    );
   });
 });

@@ -140,6 +140,31 @@ const rolledBack = rollbackAllowlist("acme-corp");
 | `*` | Everything |
 | `glean_search\|serval_query` | Exact tool names (pipe-separated) |
 
+## Fastify
+
+The tool-access check is framework-agnostic (`checkAllowlist(ctx)`); the Express
+middleware and the Fastify plugin are thin adapters over it.
+
+```typescript
+import Fastify from "fastify";
+import { fastifyAuth } from "@reaatech/mcp-gateway-auth/fastify";
+import { fastifyAllowlist } from "@reaatech/mcp-gateway-allowlist/fastify";
+
+const app = Fastify();
+
+await app.register(fastifyAuth);       // resolves request.tenantId
+await app.register(fastifyAllowlist);  // reads it, gates tools/call
+
+app.post("/mcp", async () => ({ ok: true }));
+```
+
+A blocked tool replies `403` with a JSON-RPC `-32601` body; non-`tools/call`
+requests pass through. The tenant comes from the auth plugin's decoration, never
+from a header. `fastify` is an optional peer dependency.
+
+**Registration order:** `auth → rate-limit → allowlist → audit → cache` —
+register `fastifyAllowlist` after `fastifyAuth` (and after `fastifyRateLimit`).
+
 ## Related Packages
 
 - [@reaatech/mcp-gateway-core](https://www.npmjs.com/package/@reaatech/mcp-gateway-core) — Config types

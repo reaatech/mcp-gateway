@@ -61,6 +61,42 @@ describe('timeoutMiddleware', () => {
 
     expect(clearTimeoutSpy).toHaveBeenCalled();
   });
+
+  it('calls next with timeout error when timeout fires and headers not sent', () => {
+    vi.useFakeTimers();
+    const middleware = timeoutMiddleware({ timeoutMs: 100, message: 'Request timeout' });
+
+    middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
+
+    expect(mockNext).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(100);
+
+    expect(mockNext).toHaveBeenCalledTimes(2);
+    const errorArg = (mockNext as ReturnType<typeof vi.fn>).mock.calls[1][0];
+    expect(errorArg).toBeDefined();
+    expect(errorArg.message).toBe('Request timeout');
+    expect(errorArg.statusCode).toBe(504);
+    expect(errorArg.category).toBe('timeout');
+
+    vi.useRealTimers();
+  });
+
+  it('does not call next with timeout error when headers already sent', () => {
+    vi.useFakeTimers();
+    mockRes.headersSent = true;
+    const middleware = timeoutMiddleware({ timeoutMs: 100 });
+
+    middleware(mockReq as Request, mockRes as Response, mockNext, mockContext);
+
+    expect(mockNext).toHaveBeenCalledTimes(1);
+
+    vi.advanceTimersByTime(100);
+
+    expect(mockNext).toHaveBeenCalledTimes(1);
+
+    vi.useRealTimers();
+  });
 });
 
 describe('withTimeout', () => {
@@ -86,5 +122,17 @@ describe('withTimeout', () => {
     await withTimeout(operation, 10000, 'Test timeout');
 
     expect(clearTimeoutSpy).toHaveBeenCalled();
+  });
+
+  it('throws categorized timeout error on AbortError', async () => {
+    const operation = vi
+      .fn()
+      .mockRejectedValue(Object.assign(new Error('AbortError'), { name: 'AbortError' }));
+
+    await expect(withTimeout(operation, 100, 'Op timeout')).rejects.toMatchObject({
+      message: 'Op timeout',
+      category: 'timeout',
+      statusCode: 504,
+    });
   });
 });

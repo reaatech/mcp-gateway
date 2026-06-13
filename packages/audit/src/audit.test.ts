@@ -2,11 +2,13 @@
  * mcp-gateway — Audit Trail Unit Tests
  */
 
+import { buildRequestContext, type GatewayDecision } from '@reaatech/mcp-gateway-core';
 import { beforeEach, describe, expect, it } from 'vitest';
-import { ConsoleAuditLogger, createAuditEvent } from './audit-logger.js';
+import { recordAudit } from './audit-core.js';
+import { ConsoleAuditLogger, createAuditEvent, SilentAuditLogger } from './audit-logger.js';
 import { createAuditQueryService } from './audit-query.js';
 import { MemoryAuditStorage } from './audit-storage.js';
-import { EVENT_TYPE_CONFIGS, getEventSeverity } from './event-types.js';
+import { EVENT_TYPE_CONFIGS, getEventSeverity, getEventTypeConfig } from './event-types.js';
 
 describe('audit-logger', () => {
   describe('createAuditEvent', () => {
@@ -158,5 +160,137 @@ describe('event-types', () => {
     const config = EVENT_TYPE_CONFIGS['allowlist.denied'];
     expect(config.severity).toBe('high');
     expect(config.requiresAuth).toBe(true);
+  });
+
+  it('getEventTypeConfig returns config for auth.success', () => {
+    const config = getEventTypeConfig('auth.success');
+    expect(config.severity).toBe('low');
+    expect(config.description).toBe('Successful authentication');
+  });
+
+  it('getEventTypeConfig returns config for upstream.error', () => {
+    const config = getEventTypeConfig('upstream.error');
+    expect(config.severity).toBe('high');
+  });
+});
+
+describe('audit-query CSV export', () => {
+  let storage: MemoryAuditStorage;
+  let queryService: ReturnType<typeof createAuditQueryService>;
+
+  beforeEach(() => {
+    storage = new MemoryAuditStorage(100);
+    queryService = createAuditQueryService(storage);
+  });
+
+  it('escapes CSV values with special characters', () => {
+    storage.store(
+      createAuditEvent('auth.success', 'req-1', {
+        tenantId: 'tenant,"a',
+        tool: 'test, tool',
+      }),
+    );
+    storage.store(
+      createAuditEvent('tool.executed', 'req-2', {
+        userId: 'user@test',
+      }),
+    );
+
+    const csv = queryService.exportCSV({});
+    expect(csv).toContain('"tenant,""a"');
+    expect(csv).toContain('"test, tool"');
+    expect(csv).toContain('user@test');
+  });
+
+  it('handles CSV values starting with = sign', () => {
+    storage.store(
+      createAuditEvent('auth.success', 'req-1', {
+        tenantId: '=cmd',
+      }),
+    );
+
+    const csv = queryService.exportCSV({});
+    expect(csv).toContain('"=cmd"');
+  });
+});
+
+describe('recordAudit', () => {
+  const logger = new SilentAuditLogger();
+
+  it('records tool.executed for allow decision', () => {
+    const ctx = buildRequestContext({
+      path: '/mcp',
+      headers: { 'x-request-id': 'req-123' },
+      body: { jsonrpc: '2.0', method: 'tools/call', params: { name: 'glean_search' } },
+    });
+    const decision: GatewayDecision = { action: 'allow' };
+
+    const event = recordAudit(ctx, decision, { logger });
+    expect(event.eventType).toBe('tool.executed');
+    expect(event.tool).toBe('glean_search');
+    expect(event.requestId).toBe('req-123');
+    expect(event.success).toBe(true);
+  });
+
+  it('records tool.blocked for deny decision', () => {
+    const ctx = buildRequestContext({
+      path: '/mcp',
+      headers: {},
+      body: { jsonrpc: '2.0', method: 'tools/call', params: { name: 'blocked_tool' } },
+    });
+    const decision: GatewayDecision = { action: 'deny' };
+
+    const event = recordAudit(ctx, decision, { logger });
+    expect(event.eventType).toBe('tool.blocked');
+    expect(event.success).toBe(false);
+  });
+
+  it('includes metadata when provided', () => {
+    const ctx = buildRequestContext({
+      path: '/mcp',
+      headers: { 'x-request-id': 'req-456' },
+    });
+    const decision: GatewayDecision = { action: 'allow' };
+
+    const event = recordAudit(ctx, decision, {
+      logger,
+      metadata: { source: 'test', version: 1 },
+    });
+    expect(event.metadata).toEqual({ source: 'test', version: 1 });
+  });
+
+  it('includes durationMs when provided', () => {
+    const ctx = buildRequestContext({
+      path: '/mcp',
+      headers: { 'x-request-id': 'req-789' },
+    });
+    const decision: GatewayDecision = { action: 'allow' };
+
+    const event = recordAudit(ctx, decision, { logger, durationMs: 42 });
+    expect(event.durationMs).toBe(42);
+  });
+
+  it('uses default logger (silent) when none provided', () => {
+    const ctx = buildRequestContext({
+      path: '/mcp',
+      headers: {},
+    });
+    const decision: GatewayDecision = { action: 'allow' };
+
+    expect(() => recordAudit(ctx, decision)).not.toThrow();
+  });
+
+  it('overrides event type when specified', () => {
+    const ctx = buildRequestContext({
+      path: '/mcp',
+      headers: { 'x-request-id': 'req-override' },
+    });
+    const decision: GatewayDecision = { action: 'allow' };
+
+    const event = recordAudit(ctx, decision, {
+      logger,
+      eventType: 'auth.success',
+    });
+    expect(event.eventType).toBe('auth.success');
   });
 });

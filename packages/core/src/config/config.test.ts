@@ -186,6 +186,21 @@ describe('upstream-loader', () => {
       expect(result.valid).toBe(false);
     });
 
+    it('rejects 0.x.x.x private IP', () => {
+      const result = validateUpstreamUrl('http://0.1.2.3:8080/mcp');
+      expect(result.valid).toBe(false);
+    });
+
+    it('rejects CGN range 100.64.0.0/10', () => {
+      const result = validateUpstreamUrl('http://100.64.0.1:8080/mcp');
+      expect(result.valid).toBe(false);
+    });
+
+    it('rejects hostname that matches private IP regex patterns', () => {
+      const result = validateUpstreamUrl('http://10.abc/path');
+      expect(result.valid).toBe(false);
+    });
+
     it('rejects non-HTTP protocol', () => {
       const result = validateUpstreamUrl('ftp://example.com');
       expect(result.valid).toBe(false);
@@ -196,6 +211,11 @@ describe('upstream-loader', () => {
       const result = validateUpstreamUrl('not-a-url');
       expect(result.valid).toBe(false);
       expect(result.reason).toContain('Invalid URL');
+    });
+
+    it('parses octal IP notation', () => {
+      const result = validateUpstreamUrl('http://010.0.0.1:8080/path');
+      expect(result).toBeDefined();
     });
   });
 

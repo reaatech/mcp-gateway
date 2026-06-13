@@ -2,7 +2,7 @@
  * mcp-gateway — Middleware Pipeline Unit Tests
  */
 
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import {
   categoryToErrorCode,
   categoryToHttpStatus,
@@ -122,6 +122,93 @@ describe('pipeline', () => {
     );
 
     expect(order).toEqual([1, 2, 3]);
+  });
+
+  it('calls next with error when middleware continues with error', () => {
+    const pipeline = createPipeline();
+    const next = vi.fn();
+
+    pipeline.use((_req, _res, _next) => {
+      _next(new Error('continue error'));
+    });
+
+    const handler = pipeline.handler();
+    const req = createMockReq();
+    const res = createMockRes();
+
+    handler(
+      req as unknown as import('express').Request,
+      res as unknown as import('express').Response,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(new Error('continue error'));
+  });
+
+  it('calls next with error when middleware throws synchronously', () => {
+    const pipeline = createPipeline();
+    const next = vi.fn();
+
+    pipeline.use(() => {
+      throw new Error('sync error');
+    });
+
+    const handler = pipeline.handler();
+    const req = createMockReq();
+    const res = createMockRes();
+
+    handler(
+      req as unknown as import('express').Request,
+      res as unknown as import('express').Response,
+      next,
+    );
+
+    expect(next).toHaveBeenCalledWith(new Error('sync error'));
+  });
+
+  it('calls next with error when async middleware rejects', async () => {
+    const pipeline = createPipeline();
+    const next = vi.fn();
+
+    pipeline.use(async () => {
+      throw new Error('async error');
+    });
+
+    const handler = pipeline.handler();
+    const req = createMockReq();
+    const res = createMockRes();
+
+    handler(
+      req as unknown as import('express').Request,
+      res as unknown as import('express').Response,
+      next,
+    );
+
+    await new Promise(process.nextTick);
+    expect(next).toHaveBeenCalledWith(new Error('async error'));
+  });
+
+  it('handles sparse middleware gracefully', () => {
+    const pipeline = createPipeline();
+    const next = vi.fn();
+
+    const casted = pipeline as unknown as { middleware: unknown[] };
+    casted.middleware = [];
+    casted.middleware[1] = (_req: unknown, _res: unknown, _next: (err?: unknown) => void) => {
+      _next();
+    };
+
+    const handler = pipeline.handler();
+    const req = createMockReq();
+    const res = createMockRes();
+
+    handler(
+      req as unknown as import('express').Request,
+      res as unknown as import('express').Response,
+      next,
+    );
+
+    expect(next).toHaveBeenCalled();
   });
 });
 

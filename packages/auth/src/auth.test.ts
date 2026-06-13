@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest';
 import {
   createAuthContext,
   decodeJwtUnsafe,
+  generateTokenFingerprint,
   generateTokenFingerprintSync,
   getRedactedAuthContext,
   hasAllScopes,
@@ -39,6 +40,26 @@ describe('auth-context', () => {
       expect(ctx.scopes).toEqual(['tools:*', 'admin']);
       expect(ctx.authMethod).toBe('jwt');
       expect(ctx.subject).toBe('sub-456');
+    });
+
+    it('creates context with issuer and expiresAt', () => {
+      const ctx = createAuthContext({
+        tenantId: 'test-tenant',
+        issuer: 'https://issuer.example.com',
+        expiresAt: 9999999999000,
+      });
+      expect(ctx.issuer).toBe('https://issuer.example.com');
+      expect(ctx.expiresAt).toBe(9999999999000);
+    });
+
+    it('creates context with keyName and tokenFingerprint', () => {
+      const ctx = createAuthContext({
+        tenantId: 'test-tenant',
+        keyName: 'my-key',
+        tokenFingerprint: 'sha256:abc123',
+      });
+      expect(ctx.keyName).toBe('my-key');
+      expect(ctx.tokenFingerprint).toBe('sha256:abc123');
     });
   });
 
@@ -128,6 +149,15 @@ describe('auth-context', () => {
       const fp1 = generateTokenFingerprintSync('token-1');
       const fp2 = generateTokenFingerprintSync('token-2');
       expect(fp1).not.toBe(fp2);
+    });
+  });
+
+  describe('generateTokenFingerprint', () => {
+    it('generates consistent fingerprint', () => {
+      const fp1 = generateTokenFingerprint('test-token');
+      const fp2 = generateTokenFingerprint('test-token');
+      expect(fp1).toBe(fp2);
+      expect(fp1).toMatch(/^sha256:[a-f0-9]{24}$/);
     });
   });
 });
@@ -247,6 +277,27 @@ describe('api-key-validator', () => {
 
       const result = validateApiKey(key, tenant);
       expect(result.valid).toBe(true);
+    });
+
+    it('uses default scopes when scopes not provided', () => {
+      const key = 'default-scope-key';
+      const hash = hashApiKey(key);
+      const tenant: TenantConfig = {
+        ...createTenantWithKey(hash),
+        auth: {
+          apiKeys: [
+            {
+              keyHash: hash,
+              name: 'default-scope-key',
+              scopes: ['tools:*'],
+            },
+          ],
+        },
+      };
+
+      const result = validateApiKey(key, tenant);
+      expect(result.valid).toBe(true);
+      expect(result.context?.scopes).toEqual(['tools:*']);
     });
   });
 });

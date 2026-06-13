@@ -136,6 +136,19 @@ export class ConsoleAuditLogger implements AuditLogger {
 }
 
 /**
+ * Silent (no-op) audit logger.
+ *
+ * The default sink for the audit middleware: it discards events so nothing is
+ * written to stdout (reserved for the MCP JSON-RPC stream) unless the host
+ * explicitly wires a real sink (Console/File/custom).
+ */
+export class SilentAuditLogger implements AuditLogger {
+  log(_event: AuditEvent): void {
+    // intentionally does nothing
+  }
+}
+
+/**
  * File audit logger (writes to file)
  * Note: Uses dynamic require for fs to avoid bundler issues
  */
