@@ -99,6 +99,9 @@ jobs:
             */*/node_modules
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
 
+      - name: Re-link workspace packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+
       - name: Check formatting
         run: pnpm biome format --write . && git diff --exit-code
 
@@ -131,6 +134,9 @@ jobs:
             */*/node_modules
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
 
+      - name: Re-link workspace packages
+        run: pnpm install --frozen-lockfile --prefer-offline
+
       - name: Lint
         run: pnpm lint
 
@@ -162,6 +168,9 @@ jobs:
             node_modules
             */*/node_modules
           key: ${{ runner.os }}-pnpm-${{ hashFiles('pnpm-lock.yaml') }}
+
+      - name: Re-link workspace packages
+        run: pnpm install --frozen-lockfile --prefer-offline
 
       - name: Type check
         run: pnpm typecheck
