@@ -524,6 +524,25 @@ describe('validateConfigCommand', () => {
   });
 
   it('logs success on valid config', async () => {
+    const mock = (await import('@reaatech/mcp-gateway-core')).loadTenantsAsync as ReturnType<
+      typeof vi.fn
+    >;
+    mock.mockResolvedValue(
+      new Map([
+        [
+          'test',
+          {
+            tenantId: 'test',
+            displayName: 'Test',
+            rateLimits: { requestsPerMinute: 100, requestsPerDay: 10000 },
+            cache: { enabled: true, ttlSeconds: 300 },
+            allowlist: { mode: 'allow' as const, tools: [] },
+            upstreams: [],
+            auth: { apiKeys: [], jwt: { issuer: '', audience: '', jwksUri: '' } },
+          },
+        ],
+      ]),
+    );
     const { validateConfigCommand } = await import('./cli/validate-config.command.js');
     await validateConfigCommand([]);
     expect(consoleSpy.log).toHaveBeenCalledWith(expect.stringContaining('✓'));
