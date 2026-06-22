@@ -3,20 +3,27 @@ packages:
 
 # pnpm 10 reads these from pnpm-workspace.yaml; the legacy "pnpm" field in
 # package.json is ignored by pnpm >= 10.
+strictPeerDependencies: false
 onlyBuiltDependencies:
   - '@biomejs/biome'
   - esbuild
 
 overrides:
   fast-uri: 3.1.2
-  hono: 4.12.21
+  hono: 4.12.25
   ip-address: 10.1.1
   brace-expansion: 5.0.6
-  protobufjs: 8.2.0
+  protobufjs: 8.6.0
   qs: 6.15.2
-  vitest: 4.1.0
+  vitest: 4.1.9
   # Security advisories (transitive devDependencies):
   # @grpc/grpc-js <1.14.4 — malformed request / compressed-message DoS
   '@grpc/grpc-js': '>=1.14.4'
   # esbuild <0.28.1 — missing binary integrity verification
   esbuild: '>=0.28.1'
+  # vite <7.3.5 — Windows path bypass (GHSA-fx2h-pf6j-xcff) + NTLMv2 hash disclosure (GHSA-v6wh-96g9-6wx3)
+  vite: 7.3.5
+  # form-data <4.0.6 — CRLF injection via unescaped multipart field names (GHSA-hmw2-7cc7-3qxx)
+  form-data: 4.0.6
+  # @opentelemetry/core <2.8.0 — unbounded memory in W3C Baggage (GHSA-8988-4f7v-96qf)
+  '@opentelemetry/core': '>=2.8.0'
