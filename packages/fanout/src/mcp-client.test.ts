@@ -157,7 +157,7 @@ describe('connection-pool', () => {
     expect(stats.totalConnections).toBe(2);
   });
 
-  it('falls through LRU when all connections have same timestamp', () => {
+  it('evicts LRU connection when host limit is reached', () => {
     const pool5 = new ConnectionPool({
       maxConnectionsPerHost: 1,
       idleTimeoutMs: 60000,
@@ -167,7 +167,7 @@ describe('connection-pool', () => {
     pool5.getConnection({ name: 'b', url: 'https://api-a.example.com/p2' });
 
     const stats = pool5.getStats();
-    expect(stats.totalConnections).toBe(2);
+    expect(stats.totalConnections).toBe(1);
   });
 
   it('removes specific connection', () => {

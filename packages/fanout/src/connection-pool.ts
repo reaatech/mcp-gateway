@@ -80,7 +80,7 @@ export class ConnectionPool {
 
     if (hostConnections >= this.config.maxConnectionsPerHost) {
       let lruConn: PoolEntry | null = null;
-      let lruTime = Date.now();
+      let lruTime = Number.POSITIVE_INFINITY;
 
       try {
         const targetHost = new URL(upstream.url).host;
