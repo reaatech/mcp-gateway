@@ -1,5 +1,11 @@
 # @reaatech/mcp-gateway-rate-limit
 
+## 1.1.1
+
+### Patch Changes
+
+- Fix Redis token-bucket/daily-quota checks throwing `TypeError: Cannot read properties of undefined (reading '_self')` against node-redis v5. `getEvalFunction` detached `eval` from the client (`const fn = client.eval; fn(...)`), losing the `this` binding that v5 command methods require, so the rate limiter fail-closed and denied **every** request with HTTP 429. It now invokes `eval` as a method on its owner (`owner.eval(...)`), preserving `this`. Added a v5-style-client regression test.
+
 ## 1.1.0
 
 ### Minor Changes

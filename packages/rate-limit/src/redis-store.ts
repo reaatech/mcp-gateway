@@ -19,6 +19,11 @@ function getEvalFunction(client: unknown): RedisEvalClient | null {
     return null;
   }
 
+  // IMPORTANT: invoke `eval` as a method on its owner object (`owner.eval(...)`),
+  // NOT via a detached reference (`const fn = owner.eval; fn(...)`). node-redis v5
+  // command methods read `this._self`, so calling a detached function throws
+  // "Cannot read properties of undefined (reading '_self')" and the rate limiter
+  // fail-closes on every request.
   const v4 = (client as Record<string, unknown>).v4;
   if (
     v4 &&
@@ -26,24 +31,18 @@ function getEvalFunction(client: unknown): RedisEvalClient | null {
     'eval' in v4 &&
     typeof (v4 as Record<string, unknown>).eval === 'function'
   ) {
-    const evalFn = v4.eval as (
-      s: string,
-      o?: { keys?: string[]; arguments?: string[] },
-    ) => Promise<unknown>;
+    const owner = v4 as RedisEvalClient;
     return {
       eval: (script: string, options?: { keys?: string[]; arguments?: string[] }) =>
-        evalFn(script, options),
+        owner.eval(script, options),
     };
   }
 
   if ('eval' in client && typeof (client as Record<string, unknown>).eval === 'function') {
-    const evalFn = (client as Record<string, unknown>).eval as (
-      s: string,
-      o?: { keys?: string[]; arguments?: string[] },
-    ) => Promise<unknown>;
+    const owner = client as RedisEvalClient;
     return {
       eval: (script: string, options?: { keys?: string[]; arguments?: string[] }) =>
-        evalFn(script, options),
+        owner.eval(script, options),
     };
   }
 
