@@ -99,7 +99,10 @@ local ttl = tonumber(ARGV[3])
 
 local data = redis.call('HMGET', key, 'count', 'reset')
 local count = tonumber(data[1]) or 0
-local reset = tonumber(data[2])
+-- Default reset to 0 when the hash is new; otherwise the first request for a
+-- tenant compares now (number) with nil and Redis aborts the script
+-- ("attempt to compare nil with number"), fail-closing every request.
+local reset = tonumber(data[2]) or 0
 
 if now >= reset then
   count = 0
