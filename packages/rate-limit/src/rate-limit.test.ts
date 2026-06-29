@@ -411,6 +411,41 @@ describe('RedisRateLimitStore', () => {
     };
   };
 
+  // Regression for the node-redis v5 "_self" crash: a v5 client exposes `eval`
+  // directly (no `.v4`), and its command methods read `this`. If getEvalFunction
+  // detaches `eval` from the client, the call throws and the store fail-closes,
+  // denying every request. This mock's `eval` is a real method that asserts it
+  // was invoked with `this` bound to the client.
+  const createV5StyleRedisClient = () => ({
+    _self: { connected: true },
+    eval(_script: string, _options?: { keys?: string[]; arguments?: string[] }) {
+      // node-redis v5 command methods read this._self; a detached call sees
+      // `this === undefined` and throws "reading '_self'".
+      if (!(this as { _self?: unknown })?._self) {
+        throw new TypeError("Cannot read properties of undefined (reading '_self')");
+      }
+      // [allowed, remaining tokens, reset] for the token-bucket script.
+      return Promise.resolve([1, 59, 60000]);
+    },
+    hGetAll: async () => ({}),
+    del: async () => {},
+    quit: async () => {},
+  });
+
+  it('calls eval bound to the client for a v5-style client (no .v4)', async () => {
+    const { RedisRateLimitStore } = await import('./index.js');
+    const store = new RedisRateLimitStore(createV5StyleRedisClient() as never);
+
+    const result = await store.checkLimit('tenant:v5', {
+      requestsPerMinute: 60,
+      requestsPerDay: 1000,
+      burstSize: 60,
+    });
+
+    // Before the fix this threw inside eval and the store denied the request.
+    expect(result.allowed).toBe(true);
+  });
+
   it('allows request when under rate limit', async () => {
     const { RedisRateLimitStore } = await import('./index.js');
     const mockClient = createMockRedisClient() as unknown;

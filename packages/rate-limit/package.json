@@ -1,6 +1,6 @@
 {
   "name": "@reaatech/mcp-gateway-rate-limit",
-  "version": "1.1.0",
+  "version": "1.1.2",
   "description": "Per-tenant rate limiting with token bucket algorithm",
   "license": "MIT",
   "author": "Rick Somers <rick@reaatech.com> (https://reaatech.com)",

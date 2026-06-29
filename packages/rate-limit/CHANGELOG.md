@@ -1,5 +1,17 @@
 # @reaatech/mcp-gateway-rate-limit
 
+## 1.1.2
+
+### Patch Changes
+
+- Fix the Redis daily-quota Lua script aborting on the first request for a tenant with `attempt to compare nil with number`. When the quota hash did not yet exist, `reset` was `nil` (only `count` was defaulted), so `now >= reset` crashed and the limiter fail-closed with HTTP 429. `reset` now defaults to `0`. Verified end-to-end against a real node-redis v5 client + real Redis (first call and subsequent calls are allowed and decrement correctly). NOTE: the existing unit tests mock `eval` and never execute the Lua, so they did not catch this — real-Redis integration coverage is recommended.
+
+## 1.1.1
+
+### Patch Changes
+
+- Fix Redis token-bucket/daily-quota checks throwing `TypeError: Cannot read properties of undefined (reading '_self')` against node-redis v5. `getEvalFunction` detached `eval` from the client (`const fn = client.eval; fn(...)`), losing the `this` binding that v5 command methods require, so the rate limiter fail-closed and denied **every** request with HTTP 429. It now invokes `eval` as a method on its owner (`owner.eval(...)`), preserving `this`. Added a v5-style-client regression test.
+
 ## 1.1.0
 
 ### Minor Changes
