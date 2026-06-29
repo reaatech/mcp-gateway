@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@reaatech/mcp-gateway-core": "workspace:*",
-    "redis": "^6.0.0"
+    "redis": "^6.0.1"
   },
   "peerDependencies": {
     "fastify": "^5"
