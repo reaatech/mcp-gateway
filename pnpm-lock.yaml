@@ -9,7 +9,7 @@ overrides:
   vite: ^7.3.5
   form-data: ^4.0.6
   protobufjs: ^8.6.0
-  js-yaml: ^5.2.0
+  js-yaml: ^4.2.0
   '@opentelemetry/core': ^2.8.0
   ip-address: ^10.1.1
 
@@ -181,8 +181,8 @@ importers:
   packages/core:
     dependencies:
       js-yaml:
-        specifier: ^5.2.0
-        version: 5.2.0
+        specifier: ^4.2.0
+        version: 4.3.0
       pino:
         specifier: ^10.3.1
         version: 10.3.1
@@ -2010,8 +2010,8 @@ packages:
   js-tokens@9.0.1:
     resolution: {integrity: sha512-mxa9E9ITFOt0ban3j6L5MpjwegGz6lBQmM1IJkWeBZGcMxto50+eWdjC/52xDbS2vy0k7vIMK0Fe2wfL9OQSpQ==}
 
-  js-yaml@5.2.0:
-    resolution: {integrity: sha512-YeLUMlvR4Ou1B119LIaM0r65JvbOBooJDc9yEu0dClb/uSC5P4FrLU8OCCz/HXWvtPoIrR0dRzABTjo1sTN9Bw==}
+  js-yaml@4.3.0:
+    resolution: {integrity: sha512-1td788aAnnZ5qs7V2QIRl1owjtYpbKt749Y3xauqQgwIIGF/xXWz1wMTEBx5O3LK3lXLVuqXPdPxj2BoFHaW9Q==}
     hasBin: true
 
   json-schema-ref-resolver@3.0.0:
@@ -2998,7 +2998,7 @@ snapshots:
   '@changesets/parse@0.4.3':
     dependencies:
       '@changesets/types': 6.1.0
-      js-yaml: 5.2.0
+      js-yaml: 4.3.0
 
   '@changesets/pre@2.0.2':
     dependencies:
@@ -4453,7 +4453,7 @@ snapshots:
 
   js-tokens@9.0.1: {}
 
-  js-yaml@5.2.0:
+  js-yaml@4.3.0:
     dependencies:
       argparse: 2.0.1
 
@@ -4758,7 +4758,7 @@ snapshots:
   read-yaml-file@1.1.0:
     dependencies:
       graceful-fs: 4.2.11
-      js-yaml: 5.2.0
+      js-yaml: 4.3.0
       pify: 4.0.1
       strip-bom: 3.0.0
 
