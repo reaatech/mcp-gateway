@@ -43,7 +43,7 @@
   },
   "dependencies": {
     "@reaatech/mcp-gateway-core": "workspace:*",
-    "jose": "^6.2.3",
+    "jose": "^6.2.8",
     "jsonwebtoken": "^9.0.2"
   },
   "peerDependencies": {
