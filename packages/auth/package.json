@@ -58,7 +58,7 @@
     "@types/jsonwebtoken": "^9.0.5",
     "@types/node": "^26.0.1",
     "tsup": "^8.4.0",
-    "typescript": "^5.8.3",
+    "typescript": "^7.0.2",
     "vitest": "^3.1.1",
     "@reaatech/mcp-gateway-allowlist": "workspace:*",
     "@types/express": "^5.0.0",
